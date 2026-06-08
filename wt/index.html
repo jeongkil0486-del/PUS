@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="W.T">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="W.T">
-    
     <link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=W+T&background=007aff&color=fff&size=192">
     <link rel="icon" sizes="192x192" href="https://ui-avatars.com/api/?name=W+T&background=007aff&color=fff&size=192">
 
@@ -30,7 +28,7 @@
         .btn-secondary { background-color: #8e8e93; color: white; }
         .btn-warning { background-color: #ffcc00; color: #333; }
         
-        /* 모드별 버튼 색상 */
+        /* 모드별 색상 */
         .btn-mode-self { background-color: #34c759; color: white; }
         .btn-mode-crew { background-color: #007aff; color: white; }
 
@@ -47,33 +45,47 @@
         .controls-top { display: flex; justify-content: space-between; align-items: center; }
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         
-        /* 번호판 박스 기본 상태 */
+        /* 번호판 박스 */
         .number-box { aspect-ratio: 1; border: 1px solid #d1d1d6; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; cursor: pointer; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: all 0.2s; }
-        
-        /* 번호판 모드별 점유 상태 */
         .number-box.occupied-self { background-color: #34c759; color: white; border-color: #34c759; }
         .number-box.occupied-crew { background-color: #007aff; color: white; border-color: #007aff; }
         .number-box.disabled { background-color: #e5e5ea; color: #aeaeae; border-color: #d1d1d6; cursor: not-allowed; }
-        
         .name-tag { font-size: 11px; margin-top: 6px; font-weight: normal; word-break: break-all; padding: 0 4px; text-align: center; }
 
-        /* 관리자 기능 블록 */
+        /* 관리자 섹션 */
         .admin-section { border: 1px solid #e5e5ea; padding: 18px; border-radius: 12px; margin-bottom: 18px; background-color: #f9f9f9; position: relative; }
         .admin-section h3 { margin: 0 0 10px 0; font-size: 16px; color: #1c1c1e; }
-        
-        /* 명단 드롭다운 */
         #whitelist-dropdown { position: absolute; top: 45px; left: 18px; right: 18px; background: white; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 100; padding: 10px; }
         .whitelist-item { padding: 8px; border-bottom: 1px solid #eee; font-size: 14px; }
         .whitelist-item:last-child { border-bottom: none; }
-        
-        /* 액션 버튼 그룹 */
         .action-group { display: flex; gap: 8px; margin-top: 8px; }
         .action-group .btn { flex: 1; padding: 12px 8px; font-size: 13px; }
+
+        /* 퇴근 경고 오버레이 */
+        #alarm-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(255, 59, 48, 0.9); z-index: 9999;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            color: white; font-size: 24px; font-weight: bold; text-align: center;
+            animation: flash 0.8s infinite alternate;
+        }
+        @keyframes flash { 0% { background-color: rgba(255, 59, 48, 0.6); } 100% { background-color: rgba(255, 59, 48, 1); } }
+
+        /* 관리자 팝업 내 깜빡이는 알림 배너 */
+        @keyframes blink-warning { 0% { background-color: #ffcc00; } 50% { background-color: #ff3b30; color: #fff; } 100% { background-color: #ffcc00; } }
+        .blinking-alarm-banner { animation: blink-warning 1s infinite; border: 2px solid #ff3b30; }
     </style>
 </head>
 <body>
 
+<div id="alarm-overlay">
+    <div style="font-size: 60px; margin-bottom: 20px;">⚠️</div>
+    <div>일과 종료!<br>번호를 즉시 반납하세요!</div>
+    <div style="font-size: 14px; margin-top: 30px; opacity: 0.8;">화면을 터치하면 알람이 꺼집니다</div>
+</div>
+
 <div id="app-container">
+    <!-- 1. 로그인 화면 -->
     <div id="login-screen" class="screen">
         <div class="login-box">
             <h2 style="color: #007aff; margin-bottom: 30px;">PUS Walkie-Talkie</h2>
@@ -85,6 +97,7 @@
         </div>
     </div>
 
+    <!-- 2. 메인 앱 화면 -->
     <div id="main-screen" class="screen hidden">
         <header>
             <span id="user-greeting">환영합니다</span>
@@ -93,8 +106,12 @@
         <div style="padding: 15px 0;">
             <div class="controls">
                 <div class="controls-top">
-                    <span id="date-display" style="font-weight: bold; color: #555;"></span>
-                    <button id="btn-return-all" class="btn btn-danger">내 번호 전체 반납</button>
+                    <span id="date-display" style="font-weight: bold; color: #555; font-size: 14px;"></span>
+                    <div style="display: flex; gap: 6px;">
+                        <button id="btn-user-alarm" class="btn btn-warning" style="padding: 8px 12px;">알림</button>
+                        <button id="btn-edit-mode" class="btn btn-secondary" style="padding: 8px 12px;">수정</button>
+                        <button id="btn-return-all" class="btn btn-danger" style="padding: 8px 12px;">초기화</button>
+                    </div>
                 </div>
                 <button id="btn-mode" class="btn btn-mode-self" style="width: 100%; padding: 12px; font-size: 16px;">현재 모드: 본인 (초록색)</button>
             </div>
@@ -102,6 +119,7 @@
         </div>
     </div>
 
+    <!-- 3. 관리자 화면 -->
     <div id="admin-screen" class="screen hidden">
         <header style="background-color: #1c1c1e;">
             <span>관리자 대시보드</span>
@@ -111,33 +129,37 @@
             
             <div class="admin-section" id="admin-user-sec">
                 <h3 id="admin-whitelist-title" style="cursor: pointer; color: #007aff; display: inline-block;">👥 계정 관리 (명단 보기 ▼)</h3>
-                
                 <div id="whitelist-dropdown" class="hidden">
                     <div style="font-weight: bold; margin-bottom: 5px; color: #007aff;">[등록된 직원 명단]</div>
                     <div id="whitelist-content">목록이 없습니다.</div>
                 </div>
-
                 <input type="text" id="admin-target-user" class="input-field" placeholder="직원 이름 입력" style="margin-top: 10px;">
-                
                 <div class="action-group">
                     <button id="btn-add-user" class="btn btn-primary">명단 생성</button>
                     <button id="btn-delete-user" class="btn btn-danger">계정 삭제</button>
                     <button id="btn-reset-pw" class="btn btn-warning" style="position: relative;">
-                        PW 초기화
-                        <span id="reset-badge" class="badge"></span>
+                        PW 초기화 <span id="reset-badge" class="badge"></span>
                     </button>
                 </div>
             </div>
 
             <div class="admin-section">
                 <h3>🔢 실시간 번호판 설정</h3>
-                
                 <div style="display: flex; gap: 8px; margin-bottom: 12px;">
                     <button id="btn-toggle-admin-board" class="btn btn-secondary" style="flex: 1;">번호판 팝업 토글</button>
                     <button id="btn-admin-reset-all" class="btn btn-danger" style="flex: 1;">모두 강제 초기화</button>
                 </div>
                 
+                <!-- 관리자 번호판 팝업 -->
                 <div id="admin-board-popup" class="hidden" style="margin-bottom: 15px; border: 2px dashed #007aff; padding: 10px; border-radius: 8px; background-color: #fff;">
+                    
+                    <!-- 직원 호출 알림 배너 -->
+                    <div id="admin-incoming-alarm" class="hidden blinking-alarm-banner" style="padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: bold; color: #333;">
+                        🔔 [<span id="alarm-sender"></span>] 님의 호출 알림!
+                        <br>
+                        <button id="btn-dismiss-alarm" class="btn btn-secondary" style="margin-top: 10px; padding: 6px 16px; font-size: 14px; background-color: #333; color: #fff;">알림 끄기</button>
+                    </div>
+
                     <p style="font-size: 12px; color: #ff3b30; margin-top: 0; margin-bottom: 10px; text-align: center; font-weight: bold;">※ 박스를 클릭하면 즉시 강제 취소됩니다.</p>
                     <div id="admin-number-grid" class="grid"></div>
                 </div>
@@ -171,7 +193,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, get, update, remove, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, get, update, remove, onValue, push, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDlcAR1IJ-GM_13wH8XTd2BhVcvs9fZGd8",
@@ -192,6 +214,11 @@
     let currentMode = "본인"; 
     let pendingResets = [];
     
+    // UI 상태 락 변수
+    let isProcessingClick = false;
+    let isEditMode = false;
+    let currentBoardNumbers = {}; // 실시간 점유 상태 로컬 저장
+    
     const getTodayString = () => {
         const offset = new Date().getTimezoneOffset() * 60000;
         const dateOffset = new Date(Date.now() - offset);
@@ -201,7 +228,6 @@
     
     const screens = { login: document.getElementById('login-screen'), main: document.getElementById('main-screen'), admin: document.getElementById('admin-screen') };
 
-    // 자동 로그인
     window.onload = async () => {
         const savedUser = localStorage.getItem('PUS_currentUser');
         const savedIsAdmin = localStorage.getItem('PUS_isAdmin') === 'true';
@@ -220,6 +246,7 @@
             switchScreen('admin');
             listenToAdminBoard();
             listenToResetRequests();
+            listenToUserAlarms(); // 관리자는 사용자 호출 알림 리스너 시작
         } else {
             document.getElementById('user-greeting').innerText = `${id}님 환영합니다`;
             document.getElementById('date-display').innerText = todayString;
@@ -247,7 +274,6 @@
         document.getElementById('export-date').value = todayString;
     }
 
-    // 로그인
     document.getElementById('btn-login').addEventListener('click', async () => {
         const id = document.getElementById('login-id').value.trim();
         const pw = document.getElementById('login-pw').value.trim();
@@ -255,15 +281,12 @@
         if(!id || !pw) return alert("ID(이름)와 비밀번호를 모두 입력해주세요.");
 
         if (id === "PUSWT" && pw === "PUSWT") {
-            await checkDailyReset(); 
-            processLoginAction(id, true);
-            return;
+            await checkDailyReset(); processLoginAction(id, true); return;
         }
 
         try {
             await checkDailyReset(); 
             const userSnap = await get(ref(db, `users/${id}`));
-            
             if (userSnap.exists()) {
                 if (userSnap.val().pw === pw) processLoginAction(id, false);
                 else alert("비밀번호가 올바르지 않습니다.");
@@ -271,7 +294,7 @@
                 const whitelistSnap = await get(ref(db, `system/whitelist/${id}`));
                 if (whitelistSnap.exists()) {
                     await set(ref(db, `users/${id}`), { pw: pw, role: "user" });
-                    alert(`환영합니다! 지금 입력하신 비밀번호로 [${id}]님의 계정이 생성(등록)되었습니다.`);
+                    alert(`환영합니다! 지금 입력하신 비밀번호로 계정이 확정되었습니다.`);
                     processLoginAction(id, false);
                 } else alert("사전 등록된 명단에 없습니다. 관리자에게 문의하세요.");
             }
@@ -283,7 +306,7 @@
         screens[target].classList.remove('hidden');
     }
 
-    // 모드 토글 (버튼 색상 변경 포함)
+    // 모드 토글
     document.getElementById('btn-mode').addEventListener('click', (e) => {
         if (currentMode === "본인") {
             currentMode = "크루";
@@ -296,6 +319,29 @@
         }
     });
 
+    // 수정 모드 토글 (강제 뺏기)
+    document.getElementById('btn-edit-mode').addEventListener('click', (e) => {
+        isEditMode = !isEditMode;
+        if (isEditMode) {
+            e.target.classList.replace('btn-secondary', 'btn-warning');
+            e.target.style.color = '#333';
+            alert("수정 모드가 켜졌습니다.\n원하는 번호를 누르면 현재 사용자를 밀어내고 내 이름으로 등록됩니다.");
+        } else {
+            e.target.classList.replace('btn-warning', 'btn-secondary');
+            e.target.style.color = 'white';
+        }
+    });
+
+    // 사용자 알림 버튼 (직원 -> 관리자 호출)
+    document.getElementById('btn-user-alarm').addEventListener('click', async () => {
+        await set(ref(db, "system/userAlarm"), {
+            timestamp: Date.now(),
+            sender: currentUser,
+            dismissed: false
+        });
+        alert("관리자에게 호출 알림을 전송했습니다.");
+    });
+
     const logoutAction = () => { 
         currentUser = null; isAdmin = false; 
         localStorage.removeItem('PUS_currentUser'); localStorage.removeItem('PUS_isAdmin');
@@ -305,7 +351,7 @@
     document.getElementById('btn-admin-logout').addEventListener('click', logoutAction);
 
     // =====================================
-    // 번호판 렌더링 및 조작
+    // 번호판 렌더링
     // =====================================
     function renderGrid(gridElement, totalNumbers, disabledNumbers, numbers, isAdminView) {
         gridElement.innerHTML = '';
@@ -338,39 +384,99 @@
             const data = snapshot.val();
             const total = (data.config && data.config.totalNumbers) || 20;
             const disabled = (data.config && data.config.disabledNumbers) || {};
-            const occupied = (data.boardState && data.boardState.numbers) || {};
-            renderGrid(grid, total, disabled, occupied, false);
+            
+            // 전역 변수에 최신 점유율 상태 업데이트
+            currentBoardNumbers = (data.boardState && data.boardState.numbers) || {};
+            renderGrid(grid, total, disabled, currentBoardNumbers, false);
         });
     }
 
+    // =====================================
+    // 트랜잭션을 적용한 완벽한 번호 토글 (중복 버그 해결)
+    // =====================================
     async function toggleNumber(num, currentOccupant, isOccupied) {
-        const boardStateRef = ref(db, "system/boardState");
-        const snap = await get(boardStateRef);
-        if (!snap.exists()) return;
-        
-        let data = snap.val();
-        if (!data.numbers) data.numbers = {};
-        const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+        if (isProcessingClick) return; 
+        isProcessingClick = true;
 
-        if (isOccupied) {
-            if (currentMode === "본인" && !currentOccupant.includes(currentUser)) return alert("본인 모드에서는 본인의 번호판만 반납할 수 있습니다.");
-            delete data.numbers[num];
-            await push(ref(db, "system/boardState/log"), { time: timeStr, num: num, action: "반납", user: currentOccupant.split('(')[0] });
-            await update(boardStateRef, { numbers: data.numbers });
-        } else {
-            const existEntry = Object.entries(data.numbers).find(([k, v]) => v && v.includes(currentUser));
-            if(existEntry && currentMode === "본인") {
-                if(!confirm(`이미 ${existEntry[0]}번을 선택 중입니다. 이동하시겠습니까?`)) return;
-                delete data.numbers[existEntry[0]];
-            }
+        try {
+            const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
             const displayName = currentMode === "크루" ? `${currentUser}(크루)` : currentUser;
-            data.numbers[num] = displayName;
-            await push(ref(db, "system/boardState/log"), { time: timeStr, num: num, action: "선택", user: displayName });
-            await update(boardStateRef, { numbers: data.numbers });
+            const logRef = ref(db, "system/boardState/log");
+
+            // 1. [수정(뺏기) 모드] 활성화 시 로직
+            if (isEditMode && isOccupied) {
+                if (currentOccupant.includes(currentUser)) {
+                    alert("이미 본인이 사용 중인 번호입니다.");
+                } else {
+                    if (confirm(`현재 [${currentOccupant}] 님이 사용 중입니다.\n강제로 내 번호로 수정하시겠습니까?`)) {
+                        await set(ref(db, `system/boardState/numbers/${num}`), displayName);
+                        await push(logRef, { time: timeStr, num: num, action: "수정(뺏기)", user: displayName });
+                    }
+                }
+                // 사용 완료 시 수정 모드 자동 해제
+                isEditMode = false;
+                const btnEdit = document.getElementById('btn-edit-mode');
+                btnEdit.classList.replace('btn-warning', 'btn-secondary');
+                btnEdit.style.color = 'white';
+                return;
+            }
+
+            // 2. 이미 점유된 내 번호 반납
+            if (isOccupied) {
+                if (currentMode === "본인" && !currentOccupant.includes(currentUser)) {
+                    alert("본인의 번호판만 반납할 수 있습니다.\n(다른 사람의 번호를 뺏으려면 상단의 [수정] 버튼을 켜주세요)");
+                    return;
+                }
+                await remove(ref(db, `system/boardState/numbers/${num}`));
+                await push(logRef, { time: timeStr, num: num, action: "반납", user: currentOccupant.split('(')[0] });
+            } 
+            // 3. 비어있는 자리 선택 (트랜잭션으로 충돌 방지)
+            else {
+                if (currentMode === "본인") {
+                    const existEntry = Object.entries(currentBoardNumbers).find(([k, v]) => v && v.includes(currentUser));
+                    if(existEntry) {
+                        if(!confirm(`이미 ${existEntry[0]}번을 선택 중입니다. 자리 이동을 하시겠습니까?`)) return;
+                        
+                        // 기존 자리 지우기와 새 자리 배정을 트랜잭션으로 한 번에 묶어서 꼬임 방지
+                        await runTransaction(ref(db, "system/boardState/numbers"), (numbers) => {
+                            if (!numbers) numbers = {};
+                            if (numbers[num]) return; // 간발의 차이로 누가 차지했으면 취소
+                            
+                            Object.keys(numbers).forEach(k => {
+                                if (numbers[k] && numbers[k].includes(currentUser)) delete numbers[k];
+                            });
+                            numbers[num] = displayName;
+                            return numbers;
+                        }).then((res) => {
+                            if (res.committed) {
+                                push(logRef, { time: timeStr, num: num, action: "자리이동", user: displayName });
+                            } else {
+                                alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
+                            }
+                        });
+                        return;
+                    }
+                }
+                
+                // 단순 빈 자리 선택 트랜잭션
+                const res = await runTransaction(ref(db, `system/boardState/numbers/${num}`), (currentData) => {
+                    if (currentData === null) return displayName; // 비어있을 때만 등록
+                    return; // 이미 누가 있으면 무시
+                });
+
+                if (res.committed) {
+                    await push(logRef, { time: timeStr, num: num, action: "선택", user: displayName });
+                } else {
+                    alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
+                }
+            }
+        } finally {
+            // 연타 방지를 위해 0.4초간 추가 락다운 유지
+            setTimeout(() => { isProcessingClick = false; }, 400); 
         }
     }
 
-    // 일반 사용자 - 내 번호 전체 반납
+    // 초기화 버튼 (내 번호 전체 반납)
     document.getElementById('btn-return-all').addEventListener('click', async () => {
         const boardStateRef = ref(db, "system/boardState");
         const snap = await get(boardStateRef);
@@ -392,12 +498,12 @@
 
         if (hasChanged) {
             await update(boardStateRef, { numbers: data.numbers });
-            alert("내 이름이 들어간 모든 번호가 반납되었습니다.");
+            alert("내 이름이 들어간 모든 번호가 초기화(반납)되었습니다.");
         } else alert("반납할 내 번호가 없습니다.");
     });
 
     // =====================================
-    // 관리자 모드 로직
+    // 관리자 기능 (팝업, 호출 알림, 강제반납)
     // =====================================
     function listenToAdminBoard() {
         const adminGrid = document.getElementById('admin-number-grid');
@@ -411,6 +517,38 @@
         });
     }
 
+    // 직원 -> 관리자 알람 수신부 (5분 타이머)
+    let adminAlarmTimer = null;
+    function listenToUserAlarms() {
+        onValue(ref(db, "system/userAlarm"), (snap) => {
+            const alarmBanner = document.getElementById('admin-incoming-alarm');
+            if (snap.exists()) {
+                const data = snap.val();
+                // 알림 생성 5분 이내이고 끄지 않은 상태일 때 배너 표출
+                if (!data.dismissed && (Date.now() - data.timestamp < 5 * 60 * 1000)) {
+                    document.getElementById('alarm-sender').innerText = data.sender;
+                    alarmBanner.classList.remove('hidden');
+                    
+                    // 5분이 지나면 자동 숨김 처리
+                    clearTimeout(adminAlarmTimer);
+                    adminAlarmTimer = setTimeout(() => {
+                        alarmBanner.classList.add('hidden');
+                    }, 5 * 60 * 1000 - (Date.now() - data.timestamp));
+                } else {
+                    alarmBanner.classList.add('hidden');
+                }
+            } else {
+                alarmBanner.classList.add('hidden');
+            }
+        });
+    }
+
+    // 알림 끄기 버튼 (관리자)
+    document.getElementById('btn-dismiss-alarm').addEventListener('click', async () => {
+        await update(ref(db, "system/userAlarm"), { dismissed: true });
+    });
+
+    // 관리자 번호 강제 취소
     async function adminForceClear(num, currentOccupant) {
         if(!confirm(`[${currentOccupant}] 님이 사용 중인 ${num}번을 강제로 반납(취소)하시겠습니까?`)) return;
         const boardStateRef = ref(db, "system/boardState");
@@ -447,9 +585,7 @@
         document.getElementById('admin-board-popup').classList.toggle('hidden');
     });
 
-    // =====================================
-    // 명단 및 비밀번호 초기화 로직 (변경됨)
-    // =====================================
+    // PW 초기화 요청 및 명단 로직
     document.getElementById('btn-user-reset-req').addEventListener('click', async () => {
         const id = document.getElementById('login-id').value.trim();
         if(!id) return alert("ID(이름) 칸에 본인 이름을 먼저 적고 [비밀번호 초기화 요청]을 눌러주세요.");
@@ -501,7 +637,6 @@
         }
     });
 
-    // ✅ 비밀번호 초기화 버튼 로직 수정
     document.getElementById('btn-reset-pw').addEventListener('click', async () => {
         const id = document.getElementById('admin-target-user').value.trim();
         if(!id) {
@@ -509,14 +644,13 @@
             return alert("초기화할 직원 이름을 입력하세요.");
         }
         
-        // 유저 데이터 삭제하되 명단(whitelist)엔 남겨두어 다음 로그인 때 새 비밀번호 등록 유도
         const userSnap = await get(ref(db, `users/${id}`));
         const whitelistSnap = await get(ref(db, `system/whitelist/${id}`));
         
         if(userSnap.exists() || whitelistSnap.exists()) {
-            await remove(ref(db, `users/${id}`)); // 기존 비밀번호 삭제
-            await set(ref(db, `system/whitelist/${id}`), true); // 명단 유지
-            await remove(ref(db, `system/resetRequests/${id}`)); // 알림 삭제
+            await remove(ref(db, `users/${id}`)); 
+            await set(ref(db, `system/whitelist/${id}`), true); 
+            await remove(ref(db, `system/resetRequests/${id}`)); 
             
             alert(`[${id}]님의 비밀번호가 초기화되었습니다.\n다시 로그인할 때 입력하는 새로운 비밀번호가 계정 비밀번호로 확정됩니다.`);
             document.getElementById('admin-target-user').value = '';
@@ -543,7 +677,7 @@
 
     document.getElementById('btn-send-alarm').addEventListener('click', async () => {
         await set(ref(db, "system/alarm"), { timestamp: Date.now() });
-        alert("미반납자 전체에게 알람이 전송되었습니다.");
+        alert("미반납자 전체에게 퇴근 경고 알람이 전송되었습니다.");
     });
 
     function listenToAlarms() {
@@ -554,9 +688,12 @@
                     const stateSnap = await get(ref(db, "system/boardState"));
                     const numbers = stateSnap.exists() ? (stateSnap.val().numbers || {}) : {};
                     const isMyNameLeft = Object.values(numbers).some(name => name && name.includes(currentUser));
+                    
                     if (isMyNameLeft) {
-                        alert("⚠️ [관리자 경고] 일과 종료! 번호를 즉시 반납해 주세요!");
-                        if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                        if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+                        const overlay = document.getElementById('alarm-overlay');
+                        overlay.style.display = 'flex';
+                        overlay.onclick = () => { overlay.style.display = 'none'; };
                     }
                 }
             }
