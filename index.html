@@ -427,10 +427,9 @@
 
     // =====================================
     // 번호 토글
-    // 규칙: 본인 슬롯(초록)과 크루 슬롯(파란)은 완전히 독립
-    //   - 본인 모드: 본인 슬롯만 관리 (크루 슬롯에 영향 없음)
-    //   - 크루 모드: 크루 슬롯만 관리 (본인 슬롯에 영향 없음)
-    //   → 결과적으로 최대 본인 1개 + 크루 1개 동시 유지 가능
+    // 규칙:
+    //   - 본인 모드: 정확히 1개만 유지 (새 번호 선택 시 기존 본인 슬롯 자동 해제)
+    //   - 크루 모드: 개수 제한 없이 추가/해제 가능
     // =====================================
     async function toggleNumber(num, currentOccupant, isOccupied) {
         if (isProcessingClick) return;
@@ -438,7 +437,6 @@
 
         try {
             const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
-            // 현재 모드에 맞는 displayName
             const displayName = currentMode === "크루" ? `${currentUser}(크루)` : currentUser;
             const logRef = ref(db, "system/boardState/log");
 
@@ -448,6 +446,16 @@
                     alert("이미 본인이 사용 중인 번호입니다.");
                 } else {
                     if (confirm(`현재 [${currentOccupant}] 님이 사용 중입니다.\n강제로 내 번호로 수정하시겠습니까?`)) {
+                        // 본인 모드로 뺏기 시 기존 본인 슬롯 먼저 해제
+                        if (currentMode === "본인") {
+                            const tasks = [];
+                            Object.entries(currentBoardNumbers).forEach(([k, v]) => {
+                                if (v === currentUser) {
+                                    tasks.push(remove(ref(db, `system/boardState/numbers/${k}`)));
+                                }
+                            });
+                            await Promise.all(tasks);
+                        }
                         await set(ref(db, `system/boardState/numbers/${num}`), displayName);
                         await push(logRef, { time: timeStr, num: num, action: "수정(뺏기)", user: displayName });
                     }
@@ -462,64 +470,64 @@
             // ── 점유된 자리 클릭 ──
             if (isOccupied) {
                 const occupantBase = currentOccupant.split('(')[0];
-                // 내 자리인지 확인
                 if (occupantBase !== currentUser) {
                     alert("본인의 번호판만 반납할 수 있습니다.\n(다른 사람의 번호를 뺏으려면 상단의 [수정] 버튼을 켜주세요)");
                     return;
                 }
-                // 반납
+                // 내 자리 반납 (본인/크루 모두 동일하게 단순 제거)
                 await remove(ref(db, `system/boardState/numbers/${num}`));
-                await push(logRef, { time: timeStr, num: num, action: "반납", user: displayName });
+                await push(logRef, { time: timeStr, num: num, action: "반납", user: currentOccupant });
                 return;
             }
 
             // ── 빈 자리 선택 ──
-            // 현재 모드에 해당하는 내 기존 슬롯만 탐색
-            //   본인 모드 → "홍길동" 형태인 내 슬롯 탐색
-            //   크루 모드 → "홍길동(크루)" 형태인 내 슬롯 탐색
-            const existEntry = Object.entries(currentBoardNumbers).find(([k, v]) => {
-                if (!v) return false;
-                if (currentMode === "크루") {
-                    return v === `${currentUser}(크루)`;
-                } else {
-                    return v === currentUser; // 이름만 정확히 일치 (크루 슬롯 제외)
-                }
-            });
+            if (currentMode === "본인") {
+                // 본인 모드: 기존 본인 슬롯이 있으면 자리이동, 없으면 신규 선택
+                const existEntry = Object.entries(currentBoardNumbers).find(([k, v]) => v === currentUser);
 
-            if (existEntry) {
-                // 같은 모드 내 자리이동
-                if (!confirm(`이미 ${existEntry[0]}번을 선택 중입니다. 자리 이동을 하시겠습니까?`)) return;
+                if (existEntry) {
+                    if (!confirm(`이미 ${existEntry[0]}번을 선택 중입니다. ${num}번으로 자리 이동을 하시겠습니까?`)) return;
 
-                const res = await runTransaction(ref(db, "system/boardState/numbers"), (numbers) => {
-                    if (!numbers) numbers = {};
-                    // 목표 자리가 다른 사람이 차지했으면 중단
-                    if (numbers[num] && numbers[num] !== displayName) return;
-                    // 현재 모드 슬롯만 삭제
-                    Object.keys(numbers).forEach(k => {
-                        if (numbers[k] === displayName) delete numbers[k];
+                    const res = await runTransaction(ref(db, "system/boardState/numbers"), (numbers) => {
+                        if (!numbers) numbers = {};
+                        if (numbers[num] && numbers[num] !== currentUser) return; // 이미 다른 사람
+                        // 기존 본인 슬롯 모두 제거
+                        Object.keys(numbers).forEach(k => {
+                            if (numbers[k] === currentUser) delete numbers[k];
+                        });
+                        numbers[num] = currentUser;
+                        return numbers;
                     });
-                    numbers[num] = displayName;
-                    return numbers;
-                });
 
+                    if (res.committed) {
+                        await push(logRef, { time: timeStr, num: num, action: "자리이동", user: currentUser });
+                    } else {
+                        alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
+                    }
+                } else {
+                    // 신규 선택 (트랜잭션으로 충돌 방지)
+                    const res = await runTransaction(ref(db, `system/boardState/numbers/${num}`), (currentData) => {
+                        if (currentData === null) return currentUser;
+                        return;
+                    });
+                    if (res.committed) {
+                        await push(logRef, { time: timeStr, num: num, action: "선택", user: currentUser });
+                    } else {
+                        alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
+                    }
+                }
+
+            } else {
+                // 크루 모드: 개수 제한 없이 추가 선택 (트랜잭션으로 충돌 방지)
+                const res = await runTransaction(ref(db, `system/boardState/numbers/${num}`), (currentData) => {
+                    if (currentData === null) return displayName;
+                    return;
+                });
                 if (res.committed) {
-                    await push(logRef, { time: timeStr, num: num, action: "자리이동", user: displayName });
+                    await push(logRef, { time: timeStr, num: num, action: "선택(크루)", user: displayName });
                 } else {
                     alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
                 }
-                return;
-            }
-
-            // 신규 빈 자리 선택 (트랜잭션으로 충돌 방지)
-            const res = await runTransaction(ref(db, `system/boardState/numbers/${num}`), (currentData) => {
-                if (currentData === null) return displayName;
-                return; // 이미 누가 있으면 무시
-            });
-
-            if (res.committed) {
-                await push(logRef, { time: timeStr, num: num, action: "선택", user: displayName });
-            } else {
-                alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
             }
 
         } catch (e) {
