@@ -108,6 +108,11 @@
                 </div>
                 <button id="btn-mode" class="btn btn-mode-self" style="width: 100%; padding: 12px; font-size: 16px;">현재 모드: 본인 (초록색)</button>
             </div>
+            <!-- 직원용 호출 알림 배너 (읽기 전용, 끄기 불가) -->
+            <div id="user-incoming-alarm" class="hidden" style="margin-bottom: 14px; border-radius: 8px; overflow: hidden; border: 1px solid #ff3b30;">
+                <div style="background:#ff3b30; color:#fff; font-weight:bold; font-size:13px; padding:6px 10px;">🔔 호출 알림 (관리자만 끌 수 있습니다)</div>
+                <div id="user-alarm-list" style="background:#fff3f3; max-height:110px; overflow-y:auto; padding:4px 10px; font-size:13px;"></div>
+            </div>
             <div id="number-grid" class="grid"></div>
         </div>
     </div>
@@ -257,6 +262,7 @@
             switchScreen('main');
             listenToBoard();
             listenToAlarms();
+            listenToUserAlarmsForUser();
         }
     }
 
@@ -417,6 +423,63 @@
         }
     }
 
+    let currentUserAlarmSenders = new Set();
+
+    function applyAlarmBlinkToUserGrid(senders) {
+        const grid = document.getElementById('number-grid');
+        if (!grid) return;
+        Array.from(grid.querySelectorAll('.number-box')).forEach(box => {
+            const nameTag = box.querySelector('.name-tag');
+            const base = nameTag ? nameTag.innerText.split('(')[0] : '';
+            if (senders.has(base)) box.classList.add('alarm-blink');
+            else box.classList.remove('alarm-blink');
+        });
+    }
+
+    function listenToUserAlarmsForUser() {
+        const fiveMin = 5 * 60 * 1000;
+        onValue(ref(db, "system/userAlarms"), (snap) => {
+            const banner = document.getElementById('user-incoming-alarm');
+            const list = document.getElementById('user-alarm-list');
+            if (!banner || !list) return;
+
+            if (!snap.exists()) {
+                banner.classList.add('hidden');
+                currentUserAlarmSenders = new Set();
+                applyAlarmBlinkToUserGrid(currentUserAlarmSenders);
+                return;
+            }
+
+            const allAlarms = snap.val();
+            const now = Date.now();
+            const active = Object.entries(allAlarms)
+                .map(([key, val]) => ({ key, ...val }))
+                .filter(a => !a.dismissed && (now - a.timestamp) < fiveMin)
+                .sort((a, b) => b.timestamp - a.timestamp);
+
+            if (active.length === 0) {
+                banner.classList.add('hidden');
+                currentUserAlarmSenders = new Set();
+                applyAlarmBlinkToUserGrid(currentUserAlarmSenders);
+                return;
+            }
+
+            list.innerHTML = active.map(a => {
+                const elapsed = now - a.timestamp;
+                const mins = Math.floor(elapsed / 60000);
+                const secs = Math.floor((elapsed % 60000) / 1000);
+                const timeAgo = mins > 0 ? mins + '\ubd84 ' + secs + '\ucd08 \uc804' : secs + '\ucd08 \uc804';
+                return '<div style="padding:4px 0; border-bottom:1px solid #ffd0d0;">'
+                    + '\ud83d\udd14 <b>' + a.sender + '</b> (' + timeAgo + ')'
+                    + '</div>';
+            }).join('');
+
+            banner.classList.remove('hidden');
+            currentUserAlarmSenders = new Set(active.map(a => a.sender));
+            applyAlarmBlinkToUserGrid(currentUserAlarmSenders);
+        });
+    }
+
     function listenToBoard() {
         const grid = document.getElementById('number-grid');
         onValue(ref(db, "system"), (snapshot) => {
@@ -426,6 +489,8 @@
             const disabled = (data.config && data.config.disabledNumbers) || {};
             currentBoardNumbers = (data.boardState && data.boardState.numbers) || {};
             renderGrid(grid, total, disabled, currentBoardNumbers, false);
+            // 번호판 재렌더링 후 알람 깜빡임 재적용
+            if (currentUserAlarmSenders.size > 0) applyAlarmBlinkToUserGrid(currentUserAlarmSenders);
         });
     }
 
