@@ -3,1035 +3,1046 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="W.T">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="W.T">
-    <link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=W+T&background=007aff&color=fff&size=192">
-    <link rel="icon" sizes="192x192" href="https://ui-avatars.com/api/?name=W+T&background=007aff&color=fff&size=192">
-    <title>W.T 시스템</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>문서 서명 및 관리 시스템</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- JSZip: 원본 .docx XML 직접 수술용 (원본 양식/폰트 100% 보존) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
     <style>
-        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; background-color: #f5f7fa; color: #333; -webkit-tap-highlight-color: transparent; }
-        * { box-sizing: border-box; }
-        #app-container { max-width: 480px; margin: 0 auto; background-color: #ffffff; min-height: 100vh; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
-        .hidden { display: none !important; }
-        
-        header { background-color: #007aff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
-        .btn { padding: 10px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
-        .btn:active { opacity: 0.8; }
-        .btn-primary { background-color: #007aff; color: white; }
-        .btn-danger { background-color: #ff3b30; color: white; }
-        .btn-secondary { background-color: #8e8e93; color: white; }
-        .btn-warning { background-color: #ffcc00; color: #333; }
-        .btn-mode-self { background-color: #34c759; color: white; }
-        .btn-mode-crew { background-color: #007aff; color: white; }
-
-        .badge { position: absolute; top: -6px; right: -6px; background-color: #ff3b30; color: white; border-radius: 50%; padding: 2px 6px; font-size: 11px; font-weight: bold; display: none; }
-
-        .screen { padding: 20px; }
-        .login-box { margin-top: 80px; text-align: center; }
-        .input-field { width: 100%; padding: 14px; margin: 8px 0; border: 1px solid #d1d1d6; border-radius: 8px; font-size: 16px; background-color: #fafafa; }
-        
-        .controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-        .controls-top { display: flex; justify-content: space-between; align-items: center; }
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-        #admin-number-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
-        #admin-board-popup { overflow: hidden; }
-        
-        .number-box { aspect-ratio: 1; border: 1px solid #d1d1d6; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; cursor: pointer; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: all 0.2s; }
-        #admin-number-grid .number-box { font-size: 14px; border-radius: 8px; }
-        #admin-number-grid .name-tag { font-size: 9px; margin-top: 3px; }
-        .number-box.occupied-self { background-color: #34c759; color: white; border-color: #34c759; }
-        .number-box.occupied-crew { background-color: #007aff; color: white; border-color: #007aff; }
-        .number-box.disabled { background-color: #e5e5ea; color: #aeaeae; border-color: #d1d1d6; cursor: not-allowed; }
-        .name-tag { font-size: 11px; margin-top: 6px; font-weight: normal; word-break: break-all; padding: 0 4px; text-align: center; }
-
-        .admin-section { border: 1px solid #e5e5ea; padding: 18px; border-radius: 12px; margin-bottom: 18px; background-color: #f9f9f9; position: relative; }
-        .admin-section h3 { margin: 0 0 10px 0; font-size: 16px; color: #1c1c1e; }
-        #whitelist-dropdown { position: absolute; top: 45px; left: 18px; right: 18px; background: white; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 100; padding: 10px; }
-        .whitelist-item { padding: 8px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .whitelist-item:last-child { border-bottom: none; }
-        .action-group { display: flex; gap: 8px; margin-top: 8px; }
-        .action-group .btn { flex: 1; padding: 12px 8px; font-size: 13px; }
-
-        #alarm-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: rgba(255, 59, 48, 0.9); z-index: 9999;
-            display: none; flex-direction: column; justify-content: center; align-items: center;
-            color: white; font-size: 24px; font-weight: bold; text-align: center;
-            animation: flash 0.8s infinite alternate;
+        :root {
+            --primary: #4f46e5; --primary-hover: #4338ca;
+            --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; --border: #e2e8f0;
+            --danger: #ef4444; --danger-hover: #dc2626;
+            --success: #10b981; --success-hover: #059669;
+            --warning: #f59e0b; --warning-hover: #d97706;
+            --muted: #94a3b8;
         }
-        @keyframes flash { 0% { background-color: rgba(255, 59, 48, 0.6); } 100% { background-color: rgba(255, 59, 48, 1); } }
-
-        /* 관리자 번호판 - 호출 알림 깜빡임 (박스 자체에 적용) */
-        @keyframes blink-box { 0% { background-color: #ffcc00; border-color: #ffcc00; color: #333; } 50% { background-color: #ff3b30; border-color: #ff3b30; color: #fff; } 100% { background-color: #ffcc00; border-color: #ffcc00; color: #333; } }
-        .alarm-blink { animation: blink-box 0.8s infinite !important; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; display: flex; justify-content: center; align-items: flex-start; }
+        .container { width: 100%; max-width: 860px; background: var(--card); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.10); padding: 28px; margin-top: 16px; margin-bottom: 32px; }
+        .screen { display: none; } .screen.active { display: block; }
+        h2 { font-size: 21px; text-align: center; color: #0f172a; margin-bottom: 22px; font-weight: 700; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 7px; font-weight: 600; font-size: 14px; color: #374151; }
+        .form-group input[type="text"], .form-group input[type="password"] {
+            width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+            font-size: 16px; transition: border-color 0.2s; background: #fafafa;
+        }
+        .form-group input:focus { outline: none; border-color: var(--primary); background: #fff; }
+        .btn {
+            width: 100%; padding: 12px; background: var(--primary); color: #fff;
+            border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s, transform 0.1s;
+            display: flex; justify-content: center; align-items: center; gap: 7px; user-select: none;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:hover { background: var(--primary-hover); }
+        .btn-secondary { background: #64748b; } .btn-secondary:hover { background: #475569; }
+        .btn-danger { background: var(--danger); } .btn-danger:hover { background: var(--danger-hover); }
+        .btn-success { background: var(--success); } .btn-success:hover { background: var(--success-hover); }
+        .btn-warning { background: var(--warning); color: #fff; } .btn-warning:hover { background: var(--warning-hover); }
+        .btn:disabled { opacity: 0.42; cursor: not-allowed; }
+        .signature-wrapper { border: 2px dashed var(--border); border-radius: 10px; background: #fff; position: relative; margin-bottom: 12px; touch-action: none; }
+        canvas { width: 100%; height: 200px; display: block; border-radius: 10px; }
+        .signature-tools { display: flex; gap: 10px; margin-bottom: 20px; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; padding-bottom: 12px; border-bottom: 2px solid var(--border); }
+        .section-block { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+        .section-label { font-weight: 700; font-size: 14px; margin-bottom: 10px; color: #1e293b; display: flex; align-items: center; gap: 6px; }
+        .file-upload-box { border: 2px dashed var(--primary); padding: 22px; text-align: center; border-radius: 10px; background: #f0f2ff; cursor: pointer; transition: background 0.2s; }
+        .file-upload-box:hover { background: #e8eaff; }
+        .preview-section { margin-top: 14px; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; }
+        .preview-toolbar { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 8px 14px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; flex-wrap: wrap; }
+        .preview-toolbar i { color: var(--primary); }
+        #docPreviewArea { padding: 20px 24px; max-height: 500px; overflow-y: auto; position: relative; }
+        #docPreviewArea table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+        #docPreviewArea td, #docPreviewArea th { border: 1px solid #cbd5e1; padding: 6px 10px; min-width: 50px; vertical-align: middle; font-size: 13px; }
+        #docPreviewArea p { margin: 3px 0; font-size: 13px; line-height: 1.5; }
+        #docPreviewArea h1, #docPreviewArea h2, #docPreviewArea h3 { margin: 8px 0 5px; }
+        .cell-sig-target { cursor: pointer; transition: background 0.15s; }
+        .cell-sig-target:hover { background: #eff6ff !important; outline: 1px dashed var(--primary); }
+        .cell-sig-target.selected { background: #dbeafe !important; outline: 2px solid var(--primary); }
+        .cell-name-target { background: #f0fdf4 !important; outline: 1px dashed #10b981; }
+        .preview-badge {
+            display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 5px;
+            border-radius: 3px; vertical-align: middle; white-space: nowrap;
+        }
+        .badge-sig  { background: #dbeafe; color: #1d4ed8; }
+        .badge-name { background: #d1fae5; color: #065f46; }
+        .badge-date { background: #ede9fe; color: #5b21b6; }
+        .cell-date-target { background: #f5f3ff !important; outline: 1px dashed #7c3aed; }
+        .insert-guide { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 9px 14px; border-radius: 8px; font-size: 13px; margin: 0 14px 14px; display: flex; align-items: flex-start; gap: 7px; }
+        .control-box { display: flex; gap: 8px; align-items: center; width: 100%; }
+        .control-box input[type="text"] { width: 180px; height: 44px; padding: 0 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 15px; background: #fafafa; }
+        .control-box input[type="text"]:focus { outline: none; border-color: var(--primary); }
+        .btn-group-layout { display: flex; gap: 6px; flex: 1; }
+        .btn-group-layout .btn { height: 44px; padding: 0 12px; white-space: nowrap; font-size: 14px; }
+        .admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; margin-top: 12px; }
+        .employee-card { border: 1.5px solid var(--border); border-radius: 10px; padding: 16px; background: #fafcff; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); position: relative; transition: box-shadow 0.2s; }
+        .employee-card:hover { box-shadow: 0 4px 14px rgba(79,70,229,0.10); }
+        .card-checkbox-wrapper { position: absolute; top: 12px; left: 12px; z-index: 10; }
+        .card-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+        .employee-name { font-weight: 700; font-size: 16px; margin-bottom: 8px; color: #1e293b; padding-left: 18px; }
+        .sig-status-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; }
+        .sig-status-badge.done { background: #d1fae5; color: #065f46; }
+        .sig-status-badge.pending { background: #fee2e2; color: #991b1b; }
+        .saved-signature-box { width: 100%; height: 76px; border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; display: flex; justify-content: center; align-items: center; overflow: hidden; margin-bottom: 8px; }
+        .saved-signature-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .no-signature { font-size: 12px; color: #94a3b8; font-style: italic; }
+        .action-container { display: flex; gap: 6px; margin-top: 6px; }
+        .batch-action-bar { background: #f8fafc; border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .batch-action-bar .btn { flex: 1; min-width: 160px; }
+        .locked-msg { display: none; background: #fee2e2; color: #b91c1c; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; font-weight: 700; text-align: center; border: 1px solid #fca5a5; }
+        .spinner { display: none; text-align: center; padding: 12px; color: var(--primary); font-size: 14px; }
+        @media (max-width: 600px) {
+            .container { padding: 16px; margin-top: 0; }
+            h2 { font-size: 18px; }
+            .admin-grid { grid-template-columns: 1fr; }
+            .control-box { flex-wrap: wrap; }
+            .control-box input[type="text"] { width: 100%; }
+            .btn-group-layout { flex-wrap: wrap; }
+            .batch-action-bar { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
+<div class="container">
 
-<div id="alarm-overlay">
-    <div style="font-size: 60px; margin-bottom: 20px;">⚠️</div>
-    <div>일과 종료!<br>번호를 즉시 반납하세요!</div>
-    <div style="font-size: 14px; margin-top: 30px; opacity: 0.8;">화면을 터치하면 알람이 꺼집니다</div>
-</div>
-
-<div id="app-container">
-    <!-- 1. 로그인 화면 -->
-    <div id="login-screen" class="screen">
-        <div class="login-box">
-            <h2 style="color: #007aff; margin-bottom: 30px;">PUS Walkie-Talkie</h2>
-            <input type="text" id="login-id" class="input-field" placeholder="ID (이름)">
-            <input type="password" id="login-pw" class="input-field" placeholder="Password">
-            <button id="btn-login" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 16px; margin-top: 15px; border-radius: 8px;">로그인</button>
-            <button id="btn-user-reset-req" class="btn btn-secondary" style="width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; background-color: transparent; color: #8e8e93; border: 1px solid #d1d1d6;">비밀번호 초기화 요청</button>
-        </div>
+    <!-- 로그인 -->
+    <div id="loginScreen" class="screen active">
+        <h2>시스템 로그인</h2>
+        <div class="form-group"><label>이름</label><input type="text" id="loginId" placeholder="이름을 입력하세요"></div>
+        <div class="form-group"><label>비밀번호 (PW)</label><input type="password" id="loginPw" placeholder="비밀번호를 입력하세요"></div>
+        <button class="btn" onclick="handleLogin()"><i class="fa-solid fa-sign-in-alt"></i> 로그인</button>
     </div>
 
-    <!-- 2. 메인 앱 화면 -->
-    <div id="main-screen" class="screen hidden">
-        <header>
-            <span id="user-greeting">환영합니다</span>
-            <button id="btn-logout" class="btn btn-secondary">로그아웃</button>
-        </header>
-        <div style="padding: 15px 0;">
-            <div class="controls">
-                <div class="controls-top">
-                    <span id="date-display" style="font-weight: bold; color: #555; font-size: 14px;"></span>
-                    <div style="display: flex; gap: 6px;">
-                        <button id="btn-user-alarm" class="btn btn-warning" style="padding: 8px 12px;">알림</button>
-                        <button id="btn-edit-mode" class="btn btn-secondary" style="padding: 8px 12px;">수정</button>
-                        <button id="btn-return-all" class="btn btn-danger" style="padding: 8px 12px;">초기화</button>
-                    </div>
-                </div>
-                <button id="btn-mode" class="btn btn-mode-self" style="width: 100%; padding: 12px; font-size: 16px;">현재 모드: 본인 (초록색)</button>
-            </div>
-            <!-- 직원용 호출 알림 배너 (읽기 전용, 끄기 불가) -->
-            <div id="user-incoming-alarm" class="hidden" style="margin-bottom: 14px; border-radius: 8px; overflow: hidden; border: 1px solid #ff3b30;">
-                <div style="background:#ff3b30; color:#fff; font-weight:bold; font-size:13px; padding:6px 10px;">🔔 호출 알림 (관리자만 끌 수 있습니다)</div>
-                <div id="user-alarm-list" style="background:#fff3f3; max-height:110px; overflow-y:auto; padding:4px 10px; font-size:13px;"></div>
-            </div>
-            <div id="number-grid" class="grid"></div>
+    <!-- 직원 화면 -->
+    <div id="userScreen" class="screen">
+        <div class="admin-header">
+            <h2 id="welcomeMessage" style="text-align:left;margin-bottom:0;font-size:18px;"></h2>
+            <button class="btn btn-secondary" style="width:auto;padding:6px 14px;font-size:13px;" onclick="logout()">로그아웃</button>
         </div>
+        <div id="lockNotification" class="locked-msg"><i class="fa-solid fa-lock"></i> 서명이 이미 제출되었습니다. 재작성이 필요하시면 관리자에게 요청하세요.</div>
+        <div class="form-group">
+            <label>스마트폰 손 서명 (아래 사각형 안에 그리세요)</label>
+            <div class="signature-wrapper" id="canvasFrame"><canvas id="signatureCanvas"></canvas></div>
+            <div class="signature-tools"><button id="btnClear" class="btn btn-secondary" onclick="clearSignature()"><i class="fa-solid fa-eraser"></i> 지우기</button></div>
+        </div>
+        <button id="btnSubmit" class="btn" onclick="submitSignature()"><i class="fa-solid fa-paper-plane"></i> 서명 제출하기</button>
     </div>
 
-    <!-- 3. 관리자 화면 -->
-    <div id="admin-screen" class="screen hidden">
-        <header style="background-color: #1c1c1e;">
-            <span>관리자 대시보드</span>
-            <button id="btn-admin-logout" class="btn btn-secondary">로그아웃</button>
-        </header>
-        <div style="padding: 15px 0;">
-            
-            <div class="admin-section" id="admin-user-sec">
-                <h3 id="admin-whitelist-title" style="cursor: pointer; color: #007aff; display: inline-block;">👥 계정 관리 (명단 보기 ▼)</h3>
-                <div id="whitelist-dropdown" class="hidden">
-                    <div style="font-weight: bold; margin-bottom: 5px; color: #007aff;">[등록된 직원 명단]</div>
-                    <div id="whitelist-content">목록이 없습니다.</div>
+    <!-- 관리자 화면 -->
+    <div id="adminScreen" class="screen">
+        <div class="admin-header">
+            <h2 style="margin-bottom:0;text-align:left;"><i class="fa-solid fa-user-shield"></i> 관리자 모드</h2>
+            <button class="btn btn-secondary" style="width:auto;padding:6px 14px;font-size:13px;" onclick="logout()">로그아웃</button>
+        </div>
+
+        <!-- 1. 양식 등록 & 미리보기 -->
+        <div class="section-block">
+            <div class="section-label"><i class="fa-solid fa-file-word" style="color:var(--primary)"></i> 1. 기본 Word 양식 등록 (.docx)</div>
+            <div class="file-upload-box" onclick="document.getElementById('wordUpload').click()">
+                <i class="fa-solid fa-file-word" style="font-size:28px;color:var(--primary);margin-bottom:8px;display:block;"></i>
+                <p id="uploadStatus" style="font-size:14px;color:#64748b;">클릭하여 Word 양식 파일 업로드</p>
+                <input type="file" id="wordUpload" accept=".docx" style="display:none;" onchange="handleFileTemplate(event)">
+            </div>
+            <div id="spinnerPreview" class="spinner"><i class="fa-solid fa-spinner fa-spin"></i> 미리보기 변환 중...</div>
+            <div id="previewSection" class="preview-section" style="display:none;">
+                <div class="preview-toolbar">
+                    <i class="fa-solid fa-eye"></i>
+                    <strong>양식 미리보기</strong>
+                    <span id="previewFileName" style="color:#94a3b8;font-size:12px;"></span>
+                    <span style="margin-left:auto;font-size:11px;color:#94a3b8;">※ <strong style="color:var(--primary)">서명이 들어갈 셀</strong>을 클릭하세요 → 왼쪽 셀에 이름, 클릭 셀부터 서명 순차 삽입</span>
                 </div>
-                <input type="text" id="admin-target-user" class="input-field" placeholder="직원 이름 입력" style="margin-top: 10px;">
-                <div class="action-group">
-                    <button id="btn-add-user" class="btn btn-primary">생성</button>
-                    <button id="btn-delete-user" class="btn btn-danger">삭제</button>
-                    <button id="btn-reset-pw" class="btn btn-warning" style="position: relative;">
-                        초기화 <span id="reset-badge" class="badge"></span>
-                    </button>
-                    <button id="btn-reset-all-pw" class="btn btn-danger" style="background-color:#ff9500;">전체초기화</button>
+                <div id="docPreviewArea"></div>
+                <div id="insertGuide" class="insert-guide" style="display:none;">
+                    <i class="fa-solid fa-circle-info" style="margin-top:2px;flex-shrink:0;"></i>
+                    <span id="insertGuideText"></span>
                 </div>
             </div>
+        </div>
 
-            <div class="admin-section">
-                <h3>🔢 실시간 번호판 설정</h3>
-                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                    <button id="btn-toggle-admin-board" class="btn btn-secondary" style="flex: 1;">번호판 팝업 토글</button>
-                    <button id="btn-admin-reset-all" class="btn btn-danger" style="flex: 1;">모두 강제 초기화</button>
-                </div>
-                
-                <div id="admin-board-popup" class="hidden" style="margin-bottom: 15px; border: 2px dashed #007aff; padding: 10px; border-radius: 8px; background-color: #fff;">
-                    <!-- 호출 알림 목록: 여러 건 누적 표시 -->
-                    <div id="admin-incoming-alarm" class="hidden" style="margin-bottom: 10px; border-radius: 8px; overflow: hidden; border: 1px solid #ff3b30;">
-                        <div style="background:#ff3b30; color:#fff; font-weight:bold; font-size:13px; padding:6px 10px;">&#128276; 호출 알림 목록</div>
-                        <div id="alarm-list" style="background:#fff3f3; max-height:130px; overflow-y:auto; padding:4px 10px; font-size:13px;"></div>
-                        <div style="background:#fff3f3; padding:4px 10px; text-align:right; border-top:1px solid #ffd0d0;">
-                            <button id="btn-dismiss-alarm" class="btn" style="padding:3px 12px; font-size:12px; background-color:#8e8e93; color:#fff; border-radius:4px;">전체 끄기</button>
-                        </div>
-                    </div>
-                    <p style="font-size: 12px; color: #ff3b30; margin-top: 0; margin-bottom: 10px; text-align: center; font-weight: bold;">※ 박스를 클릭하면 즉시 강제 취소됩니다.</p>
-                    <div id="admin-number-grid" class="grid"></div>
-                </div>
-
-                <div style="display: flex; gap: 8px;">
-                    <input type="number" id="admin-total-nums" class="input-field" placeholder="최대 번호 개수 (기본 20)">
-                    <button id="btn-update-nums" class="btn btn-primary" style="white-space: nowrap;">변경</button>
-                </div>
-                <div style="display: flex; gap: 8px; margin-top: 8px;">
-                    <input type="number" id="admin-disable-num" class="input-field" placeholder="제한/해제할 번호">
-                    <button id="btn-toggle-disable" class="btn btn-secondary" style="white-space: nowrap;">상태 토글</button>
+        <!-- 2. 직원 계정 제어 -->
+        <div class="section-block">
+            <div class="section-label"><i class="fa-solid fa-users-gear" style="color:var(--primary)"></i> 2. 직원 계정 제어 및 비밀번호 초기화</div>
+            <div class="control-box">
+                <input type="text" id="targetEmpId" placeholder="이름 입력 (예: 홍길동)">
+                <div class="btn-group-layout">
+                    <button class="btn" onclick="createEmployeeAccountDirect()"><i class="fa-solid fa-user-plus"></i> 생성</button>
+                    <button class="btn btn-danger" onclick="deleteEmployeeAccountDirect()"><i class="fa-solid fa-user-minus"></i> 삭제</button>
+                    <button class="btn btn-warning" onclick="resetEmployeePasswordDirect()"><i class="fa-solid fa-key"></i> 초기화</button>
                 </div>
             </div>
+        </div>
 
-            <div class="admin-section">
-                <h3>🔔 미반납자 알람</h3>
-                <button id="btn-send-alarm" class="btn btn-danger" style="width: 100%; padding: 12px;">반납 촉구 알람 전송</button>
+        <!-- 3. 직원별 서명 현황 -->
+        <div>
+            <div class="section-label"><i class="fa-solid fa-pen-nib" style="color:var(--primary)"></i> 3. 직원별 서명 현황 (체크하여 일괄 제어)</div>
+
+            <!-- 검색창 -->
+            <div style="position:relative;margin-bottom:12px;">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;"></i>
+                <input type="text" id="searchEmp" placeholder="이름 검색..." oninput="filterCards(this.value)"
+                    style="width:100%;padding:10px 12px 10px 36px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:#fafafa;outline:none;transition:border-color .2s;"
+                    onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
             </div>
 
-            <div class="admin-section">
-                <h3>📊 일별 엑셀 다운로드</h3>
-                <div style="display: flex; gap: 8px;">
-                    <input type="date" id="export-date" class="input-field" style="margin: 0;">
-                    <button id="btn-export-excel" class="btn btn-primary" style="background-color: #34c759; white-space: nowrap;">추출</button>
-                </div>
+            <!-- 전체 선택 + 카운트 -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:600;color:#374151;">
+                    <input type="checkbox" id="checkAll" onchange="toggleAllCards(this)" style="width:16px;height:16px;accent-color:var(--primary);">
+                    전체 선택
+                </label>
+                <span id="selectedCount" style="font-size:13px;color:var(--muted);"></span>
             </div>
 
+            <!-- 일괄 처리 버튼 -->
+            <div class="batch-action-bar">
+                <button class="btn btn-success" id="btnDownload" onclick="downloadCheckedEmployeesDocument()">
+                    <i class="fa-solid fa-file-import"></i> 적용 및 다운로드
+                </button>
+                <button class="btn btn-danger" onclick="deleteCheckedEmployees()">
+                    <i class="fa-solid fa-trash-can"></i> 명단 일괄 삭제
+                </button>
+                <button class="btn btn-warning" onclick="resetAllSignatures()">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> 전체 서명 초기화
+                </button>
+            </div>
+            <div id="spinnerDownload" class="spinner"><i class="fa-solid fa-spinner fa-spin"></i> 문서 생성 중... 잠시 기다려 주세요</div>
+            <div class="admin-grid" id="adminGrid"></div>
         </div>
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, get, update, remove, onValue, push, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+<script>
+/* ═══════════════════════════════════════════════
+   Firebase
+═══════════════════════════════════════════════ */
+const firebaseConfig = {
+    apiKey: "AIzaSyDlcAR1IJ-GM_13wH8XTd2BhVcvs9fZGd8",
+    authDomain: "fltinfo.firebaseapp.com",
+    databaseURL: "https://fltinfo-default-rtdb.firebaseio.com",
+    projectId: "fltinfo",
+    storageBucket: "fltinfo.firebasestorage.app",
+    messagingSenderId: "77715217220",
+    appId: "1:77715217220:web:8f940ae71f01e068ef9511"
+};
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDlcAR1IJ-GM_13wH8XTd2BhVcvs9fZGd8",
-        authDomain: "fltinfo.firebaseapp.com",
-        databaseURL: "https://fltinfo-default-rtdb.firebaseio.com",
-        projectId: "fltinfo",
-        storageBucket: "fltinfo.firebasestorage.app",
-        messagingSenderId: "77715217220",
-        appId: "1:77715217220:web:8f940ae71f01e068ef9511",
-        measurementId: "G-NTHVH61ZLS"
-    };
+/* ═══════════════════════════════════════════════
+   전역 상태
+═══════════════════════════════════════════════ */
+let signaturePad;
+let currentUser      = null;
+let globalUsersData  = {};
+let uploadedTemplateArrayBuffer = null;
+let uploadedTemplateFileName    = '';
+let insertPosition   = null; // { tableIdx, rowIdx, colIdx }
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+/* ═══════════════════════════════════════════════
+   IndexedDB — 관리자 설정 영속화 (새로고침 후에도 유지)
+   저장 항목: docx ArrayBuffer, 파일명, 삽입 위치
+═══════════════════════════════════════════════ */
+const IDB_NAME = 'pussign_admin';
+const IDB_STORE = 'settings';
+let _idb = null;
 
-    let currentUser = null;
-    let isAdmin = false;
-    let currentMode = "본인";
-    let pendingResets = [];
-    let isProcessingClick = false;
-    let isEditMode = false;
-    let currentBoardNumbers = {};
+function openIDB() {
+    return new Promise((resolve, reject) => {
+        if (_idb) { resolve(_idb); return; }
+        const req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+        req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+        req.onerror   = e => reject(e.target.error);
+    });
+}
+async function idbSet(key, val) {
+    const db = await openIDB();
+    return new Promise((res, rej) => {
+        const r = db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE).put(val, key);
+        r.onsuccess = () => res();
+        r.onerror   = e  => rej(e.target.error);
+    });
+}
+async function idbGet(key) {
+    const db = await openIDB();
+    return new Promise((res, rej) => {
+        const r = db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).get(key);
+        r.onsuccess = e => res(e.target.result ?? null);
+        r.onerror   = e => rej(e.target.error);
+    });
+}
+async function idbDel(key) {
+    const db = await openIDB();
+    return new Promise((res, rej) => {
+        const r = db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE).delete(key);
+        r.onsuccess = () => res();
+        r.onerror   = e => rej(e.target.error);
+    });
+}
 
-    const getTodayString = () => {
-        const offset = new Date().getTimezoneOffset() * 60000;
-        const dateOffset = new Date(Date.now() - offset);
-        return dateOffset.toISOString().split('T')[0];
-    };
-    let todayString = getTodayString();
-
-    const screens = {
-        login: document.getElementById('login-screen'),
-        main: document.getElementById('main-screen'),
-        admin: document.getElementById('admin-screen')
-    };
-
-    // =====================================
-    // [수정 1] 앱 시작 시 localStorage 로그인 복원
-    // =====================================
-    window.onload = async () => {
-        const savedUser = localStorage.getItem('PUS_currentUser');
-        const savedIsAdmin = localStorage.getItem('PUS_isAdmin') === 'true';
-        if (savedUser) {
-            try {
-                await checkDailyReset(savedIsAdmin);
-                processLoginAction(savedUser, savedIsAdmin);
-            } catch (e) {
-                console.error("자동 로그인 실패:", e);
-                localStorage.removeItem('PUS_currentUser');
-                localStorage.removeItem('PUS_isAdmin');
-            }
+/* 관리자 설정 저장 */
+async function saveAdminSettings() {
+    try {
+        if (uploadedTemplateArrayBuffer) {
+            await idbSet('templateBuffer',   uploadedTemplateArrayBuffer);
+            await idbSet('templateFileName', uploadedTemplateFileName);
         }
-    };
+        if (insertPosition) await idbSet('insertPosition', insertPosition);
+        else                await idbDel('insertPosition');
+    } catch(e) { console.warn('IDB save:', e); }
+}
 
-    function processLoginAction(id, adminFlag) {
-        currentUser = id;
-        isAdmin = adminFlag;
-        localStorage.setItem('PUS_currentUser', id);
-        localStorage.setItem('PUS_isAdmin', adminFlag);
+/* 관리자 로그인 시 저장된 설정 복구 */
+async function restoreAdminSettings() {
+    try {
+        const buf  = await idbGet('templateBuffer');
+        const name = await idbGet('templateFileName');
+        const pos  = await idbGet('insertPosition');
+        if (!buf) return;
 
-        if (isAdmin) {
-            switchScreen('admin');
-            listenToAdminBoard();
-            listenToResetRequests();
-            listenToUserAlarms();
-        } else {
-            document.getElementById('user-greeting').innerText = `${id}님 환영합니다`;
-            document.getElementById('date-display').innerText = todayString;
-            switchScreen('main');
-            listenToBoard();
-            listenToAlarms();
-            listenToUserAlarmsForUser();
-        }
+        uploadedTemplateArrayBuffer = buf;
+        uploadedTemplateFileName    = name || '저장된 양식';
+        document.getElementById('uploadStatus').innerText = `양식 등록 완료: ${uploadedTemplateFileName}`;
+        document.getElementById('uploadStatus').style.color = '#059669';
+        document.getElementById('previewFileName').innerText = `(${uploadedTemplateFileName})`;
+        document.getElementById('spinnerPreview').style.display = 'block';
+
+        mammoth.convertToHtml({ arrayBuffer: buf.slice() })
+            .then(result => {
+                document.getElementById('spinnerPreview').style.display = 'none';
+                const area = document.getElementById('docPreviewArea');
+                area.innerHTML = result.value;
+                document.getElementById('previewSection').style.display = 'block';
+                attachCellClickEvents(area);
+                if (pos) {
+                    insertPosition = pos;
+                    const tables = area.querySelectorAll('table');
+                    onCellClick(area, tables, pos.tableIdx, pos.rowIdx, pos.colIdx);
+                }
+            })
+            .catch(() => { document.getElementById('spinnerPreview').style.display = 'none'; });
+    } catch(e) { console.warn('IDB restore:', e); }
+}
+
+/* ═══════════════════════════════════════════════
+   초기화
+═══════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+    initSignaturePad();
+    setupCanvasResize();
+    listenToRealtimeDatabase();
+});
+
+function initSignaturePad() {
+    const canvas = document.getElementById('signatureCanvas');
+    signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)', penColor: 'rgb(0,0,0)' });
+}
+
+function setupCanvasResize() {
+    const canvas = document.getElementById('signatureCanvas');
+    function resize() {
+        const r = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width  = canvas.offsetWidth  * r;
+        canvas.height = canvas.offsetHeight * r;
+        canvas.getContext('2d').scale(r, r);
+        if (signaturePad) signaturePad.clear();
     }
+    window.addEventListener('resize', resize);
+    setTimeout(resize, 300);
+}
 
-    // =====================================
-    // [수정 2] checkDailyReset: export-date는 관리자일 때만 설정
-    // =====================================
-    async function checkDailyReset(adminFlag = false) {
-        todayString = getTodayString();
-        const boardStateRef = ref(db, "system/boardState");
-        const snap = await get(boardStateRef);
+function clearSignature() { if (signaturePad && !signaturePad.disabled) signaturePad.clear(); }
 
-        if (snap.exists()) {
-            const data = snap.val();
-            if (data.date && data.date !== todayString) {
-                await set(ref(db, `history/${data.date}`), {
-                    state: data.numbers || {},
-                    log: data.log || {}
-                });
-                await update(boardStateRef, { date: todayString, numbers: {}, log: {} });
-            }
+/* ═══════════════════════════════════════════════
+   Firebase 리스너
+═══════════════════════════════════════════════ */
+function listenToRealtimeDatabase() {
+    database.ref('users').on('value', snap => {
+        const raw = snap.val() || {};
+        // name 필드가 없거나 undefined인 경우 key(userId)로 자동 보정
+        globalUsersData = {};
+        Object.keys(raw).forEach(id => {
+            globalUsersData[id] = { ...raw[id], name: raw[id].name || id };
+            // Firebase에 name이 누락된 경우 자동 복구
+            if (!raw[id].name) database.ref('users/' + id).update({ name: id });
+        });
+        if (!currentUser) {
+            checkSessionStorageLogin();
         } else {
-            await set(boardStateRef, { date: todayString, numbers: {}, log: {} });
-            await set(ref(db, "system/config"), { totalNumbers: 20, disabledNumbers: {} });
-        }
-
-        // 관리자 화면의 export-date 요소가 존재할 때만 값 설정
-        if (adminFlag) {
-            const exportDateEl = document.getElementById('export-date');
-            if (exportDateEl) exportDateEl.value = todayString;
-        }
-    }
-
-    // =====================================
-    // 로그인
-    // =====================================
-    document.getElementById('btn-login').addEventListener('click', async () => {
-        const id = document.getElementById('login-id').value.trim();
-        const pw = document.getElementById('login-pw').value.trim();
-        if (!id || !pw) return alert("ID(이름)와 비밀번호를 모두 입력해주세요.");
-
-        if (id === "PUSWT" && pw === "PUSWT") {
-            try {
-                await checkDailyReset(true);
-                processLoginAction(id, true);
-            } catch (e) {
-                alert("서버 연결 실패.");
+            if (currentUser.role !== 'admin' && globalUsersData[currentUser.id]) {
+                currentUser = { id: currentUser.id, ...globalUsersData[currentUser.id] };
+                checkUserSignatureLockState();
             }
-            return;
-        }
-
-        try {
-            await checkDailyReset(false);
-            const [userSnap, whitelistSnap] = await Promise.all([
-                get(ref(db, `users/${id}`)),
-                get(ref(db, `system/whitelist/${id}`))
-            ]);
-
-            const isWhitelisted = whitelistSnap.exists();
-            const existingPw = userSnap.exists() ? userSnap.val().pw : null;
-
-            if (!isWhitelisted && !existingPw) {
-                // 명단에도 없고 계정도 없음
-                return alert("사전 등록된 명단에 없습니다. 관리자에게 문의하세요.");
-            }
-
-            if (!existingPw) {
-                // 명단은 있지만 아직 비밀번호 미설정(신규 or 초기화된 계정) → 첫 로그인
-                await set(ref(db, `users/${id}`), { pw: pw, role: "user" });
-                alert(`환영합니다! 지금 입력하신 비밀번호로 계정이 확정되었습니다.`);
-                processLoginAction(id, false);
-            } else if (existingPw === pw) {
-                // 기존 비밀번호 일치 → 로그인
-                processLoginAction(id, false);
-            } else {
-                alert("비밀번호가 올바르지 않습니다.");
-            }
-        } catch (error) {
-            console.error(error);
-            alert("서버 연결 실패.");
+            if (document.getElementById('adminScreen').classList.contains('active')) renderAdminGrid();
         }
     });
+}
 
-    function switchScreen(target) {
-        Object.values(screens).forEach(s => s.classList.add('hidden'));
-        screens[target].classList.remove('hidden');
+/* ═══════════════════════════════════════════════
+   세션 복구
+═══════════════════════════════════════════════ */
+function checkSessionStorageLogin() {
+    const saved = sessionStorage.getItem('pussign_user_session');
+    if (!saved) return;
+    const u = JSON.parse(saved);
+    if (u.id === 'PUSSIGN') {
+        currentUser = u; switchScreen('adminScreen'); renderAdminGrid(); restoreAdminSettings();
+    } else if (globalUsersData[u.id]) {
+        currentUser = { id: u.id, ...globalUsersData[u.id] };
+        switchScreen('userScreen');
+        document.getElementById('welcomeMessage').innerText = currentUser.name;
+        checkUserSignatureLockState();
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 200);
+    }
+}
+
+function switchScreen(id) {
+    ['loginScreen','userScreen','adminScreen'].forEach(s => document.getElementById(s).classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════
+   서명 잠금
+═══════════════════════════════════════════════ */
+function checkUserSignatureLockState() {
+    const locked = currentUser.signature && currentUser.signature !== '';
+    document.getElementById('lockNotification').style.display = locked ? 'block' : 'none';
+    document.getElementById('btnClear').disabled  = locked;
+    document.getElementById('btnSubmit').disabled = locked;
+    if (signaturePad) { locked ? signaturePad.off() : (signaturePad.on(), signaturePad.clear()); }
+}
+
+/* ═══════════════════════════════════════════════
+   로그인 / 로그아웃
+═══════════════════════════════════════════════ */
+function handleLogin() {
+    const id = document.getElementById('loginId').value.trim();
+    const pw = document.getElementById('loginPw').value.trim();
+    if (!id || !pw) { alert('이름과 비밀번호를 모두 입력해 주세요.'); return; }
+    if (id === 'PUSSIGN' && pw === 'PUSSIGN') {
+        currentUser = { id: 'PUSSIGN', name: '최고관리자', role: 'admin' };
+        sessionStorage.setItem('pussign_user_session', JSON.stringify(currentUser));
+        switchScreen('adminScreen'); renderAdminGrid(); restoreAdminSettings(); return;
+    }
+    const rec = globalUsersData[id];
+    if (!rec) { alert('정보가 일치하지 않습니다.'); return; }
+    if (!rec.pw || rec.pw === '') {
+        database.ref('users/' + id).update({ pw }).then(() => {
+            alert('입력하신 비밀번호가 초기 비밀번호로 자동 지정됩니다.');
+            currentUser = { id, ...rec, pw };
+            sessionStorage.setItem('pussign_user_session', JSON.stringify(currentUser));
+            proceedUserLogin(currentUser);
+        });
+    } else {
+        if (rec.pw === pw) {
+            currentUser = { id, ...rec };
+            sessionStorage.setItem('pussign_user_session', JSON.stringify(currentUser));
+            proceedUserLogin(currentUser);
+        } else { alert('정보가 일치하지 않습니다.'); }
+    }
+}
+
+function proceedUserLogin(r) {
+    switchScreen('userScreen');
+    document.getElementById('welcomeMessage').innerText = r.name;
+    checkUserSignatureLockState();
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 200);
+}
+
+function logout() {
+    currentUser = null;
+    sessionStorage.removeItem('pussign_user_session');
+    document.getElementById('loginId').value = '';
+    document.getElementById('loginPw').value = '';
+    switchScreen('loginScreen');
+}
+
+/* ═══════════════════════════════════════════════
+   직원 계정 CRUD
+═══════════════════════════════════════════════ */
+function createEmployeeAccountDirect() {
+    const name = document.getElementById('targetEmpId').value.trim();
+    if (!name) { alert('생성할 대상의 이름을 입력해 주세요.'); return; }
+    if (globalUsersData[name] || name === 'PUSSIGN') { alert('이미 존재하는 이름입니다.'); return; }
+    database.ref('users/' + name).set({ pw:'', name, role:'user', signature:'', timestamp:'' })
+        .then(() => { alert('생성되었습니다.'); document.getElementById('targetEmpId').value = ''; });
+}
+function deleteEmployeeAccountDirect() {
+    const name = document.getElementById('targetEmpId').value.trim();
+    if (!name) { alert('삭제할 사람의 이름을 입력창에 적어주세요.'); return; }
+    if (!globalUsersData[name]) { alert('존재하지 않는 이름입니다.'); return; }
+    if (confirm(`정말로 [${name}] 계정을 완전히 삭제하시겠습니까?`))
+        database.ref('users/' + name).remove().then(() => { alert('삭제되었습니다.'); document.getElementById('targetEmpId').value = ''; });
+}
+function resetEmployeePasswordDirect() {
+    const name = document.getElementById('targetEmpId').value.trim();
+    if (!name) { alert('비밀번호를 리셋할 사람의 이름을 입력창에 적어주세요.'); return; }
+    if (!globalUsersData[name]) { alert('등록되지 않은 이름입니다.'); return; }
+    if (confirm(`[${name}]의 비밀번호를 초기화하시겠습니까?`))
+        database.ref('users/' + name).update({ pw:'' }).then(() => { alert('초기화되었습니다.'); document.getElementById('targetEmpId').value = ''; });
+}
+
+/* ═══════════════════════════════════════════════
+   서명 제출
+═══════════════════════════════════════════════ */
+function submitSignature() {
+    if (signaturePad.isEmpty()) { alert('서명란에 손 서명을 작성해 주세요.'); return; }
+    database.ref('users/' + currentUser.id).update({ signature: signaturePad.toDataURL(), timestamp: Date.now() })
+        .then(() => alert('서명이 전송되어 제출이 완결되었습니다.'));
+}
+
+/* ═══════════════════════════════════════════════
+   전체 선택 / 카운트
+═══════════════════════════════════════════════ */
+function toggleAllCards(masterChk) {
+    document.querySelectorAll('.employee-card').forEach(card => {
+        if (card.style.display === 'none') return;
+        const chk = card.querySelector('.card-checkbox');
+        if (chk) chk.checked = masterChk.checked;
+    });
+    updateSelectedCount();
+    refreshPreviewBadges();
+}
+function updateSelectedCount() {
+    const total   = document.querySelectorAll('.card-checkbox:not([style*="display:none"])').length;
+    const checked = document.querySelectorAll('.card-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = checked > 0 ? `${checked} / ${total}명 선택됨` : '';
+}
+
+/* 이름 검색 필터 */
+function filterCards(keyword) {
+    const kw = keyword.trim().toLowerCase();
+    document.querySelectorAll('.employee-card').forEach(card => {
+        const name = (card.querySelector('.employee-name') || {}).innerText || '';
+        card.style.display = (!kw || name.toLowerCase().includes(kw)) ? '' : 'none';
+    });
+    // 전체선택 체크박스 상태 동기화
+    const master = document.getElementById('checkAll');
+    if (master) master.checked = false;
+    updateSelectedCount();
+}
+
+/* 전체 서명 초기화 */
+function resetAllSignatures() {
+    const signedUsers = Object.keys(globalUsersData)
+        .filter(id => globalUsersData[id].role !== 'admin' && globalUsersData[id].signature && globalUsersData[id].signature !== '');
+    if (!signedUsers.length) { alert('초기화할 서명이 없습니다.'); return; }
+    if (!confirm(`서명을 완료한 ${signedUsers.length}명의 서명을 전부 초기화하시겠습니까?\n(직원 계정은 삭제되지 않으며, 서명만 삭제됩니다)`)) return;
+    Promise.all(signedUsers.map(id => database.ref('users/' + id).update({ signature:'', timestamp:'' })))
+        .then(() => alert(`${signedUsers.length}명의 서명이 모두 초기화되었습니다.`));
+}
+
+/* ═══════════════════════════════════════════════
+   관리자 그리드 렌더링
+═══════════════════════════════════════════════ */
+function renderAdminGrid() {
+    const grid = document.getElementById('adminGrid');
+    grid.innerHTML = '';
+    const master = document.getElementById('checkAll');
+    if (master) master.checked = false;
+
+    const users = Object.keys(globalUsersData)
+        .filter(id => globalUsersData[id].role !== 'admin')
+        .sort((a,b) => a.localeCompare(b,'ko'));
+
+    if (!users.length) {
+        grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px;">등록된 직원이 없습니다.</p>';
+        return;
     }
 
-    // 모드 토글
-    document.getElementById('btn-mode').addEventListener('click', (e) => {
-        if (currentMode === "본인") {
-            currentMode = "크루";
-            e.target.innerText = `현재 모드: 크루 (파란색)`;
-            e.target.className = 'btn btn-mode-crew';
-        } else {
-            currentMode = "본인";
-            e.target.innerText = `현재 모드: 본인 (초록색)`;
-            e.target.className = 'btn btn-mode-self';
-        }
-    });
+    users.forEach(userId => {
+        const user  = globalUsersData[userId];
+        if (!user.name) user.name = userId; // 방어적 폴백
+        const hasSig = user.signature && user.signature !== '';
 
-    // 수정 모드 토글
-    document.getElementById('btn-edit-mode').addEventListener('click', (e) => {
-        isEditMode = !isEditMode;
-        if (isEditMode) {
-            e.target.classList.replace('btn-secondary', 'btn-warning');
-            e.target.style.color = '#333';
-            alert("수정 모드가 켜졌습니다.\n원하는 번호를 누르면 현재 사용자를 밀어내고 내 이름으로 등록됩니다.");
-        } else {
-            e.target.classList.replace('btn-warning', 'btn-secondary');
-            e.target.style.color = 'white';
-        }
-    });
+        const card = document.createElement('div');
+        card.className = 'employee-card';
 
-    // 사용자 알림 버튼 (직원 → 관리자 호출)
-    document.getElementById('btn-user-alarm').addEventListener('click', async () => {
-        try {
-            // push()로 목록에 추가 → 새 알림이 와도 기존 알림 유지
-            await push(ref(db, "system/userAlarms"), {
-                timestamp: Date.now(),
-                sender: currentUser,
-                dismissed: false
+        /* 체크박스 */
+        const cw  = document.createElement('div'); cw.className = 'card-checkbox-wrapper';
+        const chk = document.createElement('input');
+        chk.type = 'checkbox'; chk.className = 'card-checkbox'; chk.value = userId;
+        chk.addEventListener('change', () => {
+            updateSelectedCount();
+            refreshPreviewBadges();  // 체크 변경 시 미리보기 배지 자동 갱신
+        });
+        cw.appendChild(chk);
+
+        /* 이름 */
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'employee-name'; nameDiv.innerText = user.name;
+
+        /* 상태 뱃지 */
+        const badge = document.createElement('span');
+        badge.className = 'sig-status-badge ' + (hasSig ? 'done' : 'pending');
+        badge.innerText = hasSig ? '✓ 서명 완료' : '미제출';
+
+        /* 서명 박스 */
+        const sigBox = document.createElement('div'); sigBox.className = 'saved-signature-box';
+        if (hasSig) {
+            const img = document.createElement('img'); img.src = user.signature; sigBox.appendChild(img);
+        } else { sigBox.innerHTML = '<span class="no-signature">서명 미제출</span>'; }
+
+        /* 타임스탬프 */
+        const tsDiv = document.createElement('div');
+        tsDiv.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:6px;';
+        if (hasSig && user.timestamp) {
+            const d = new Date(user.timestamp);
+            tsDiv.innerText = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }
+
+        /* 초기화 버튼 */
+        const ac = document.createElement('div'); ac.className = 'action-container';
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'btn btn-warning';
+        resetBtn.style.cssText = 'padding:7px;font-size:12px;flex:1;';
+        resetBtn.innerHTML = '<i class="fa-solid fa-arrow-rotate-left"></i> 서명 초기화';
+        resetBtn.addEventListener('click', () => {
+            if (confirm(`[${user.name}] 직원이 서명을 다시 작성할 수 있도록 초기화하시겠습니까?`))
+                database.ref('users/' + userId).update({ signature:'', timestamp:'' })
+                    .then(() => alert('초기화되었습니다.'));
+        });
+        ac.appendChild(resetBtn);
+
+        card.appendChild(cw); card.appendChild(nameDiv); card.appendChild(badge);
+        card.appendChild(sigBox); card.appendChild(tsDiv); card.appendChild(ac);
+        grid.appendChild(card);
+    });
+    // 실시간 업데이트 후에도 검색 필터 유지
+    const kw = (document.getElementById('searchEmp') || {}).value || '';
+    if (kw) filterCards(kw);
+    updateSelectedCount();
+}
+
+/* ═══════════════════════════════════════════════
+   일괄 삭제
+═══════════════════════════════════════════════ */
+function deleteCheckedEmployees() {
+    const chks = document.querySelectorAll('.card-checkbox:checked');
+    if (!chks.length) { alert('삭제할 직원을 체크박스에서 선택해 주세요.'); return; }
+    if (confirm(`선택한 ${chks.length}명의 직원을 일괄 삭제하시겠습니까?`))
+        Promise.all(Array.from(chks).map(c => database.ref('users/' + c.value).remove()))
+            .then(() => alert('선택한 직원들이 일괄 삭제되었습니다.'));
+}
+
+/* ═══════════════════════════════════════════════
+   양식 파일 등록 + mammoth 미리보기
+═══════════════════════════════════════════════ */
+function handleFileTemplate(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    insertPosition = null;
+    uploadedTemplateFileName = file.name;
+
+    document.getElementById('uploadStatus').innerText = `양식 등록 완료: ${file.name}`;
+    document.getElementById('uploadStatus').style.color = '#059669';
+    document.getElementById('previewFileName').innerText = `(${file.name})`;
+    document.getElementById('spinnerPreview').style.display = 'block';
+    document.getElementById('previewSection').style.display = 'none';
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+        uploadedTemplateArrayBuffer = ev.target.result.slice(); // 원본 보존
+
+        // mammoth로 HTML 미리보기 변환 (별도 ArrayBuffer 사용)
+        mammoth.convertToHtml({ arrayBuffer: ev.target.result })
+            .then(result => {
+                document.getElementById('spinnerPreview').style.display = 'none';
+                const area = document.getElementById('docPreviewArea');
+                area.innerHTML = result.value;
+                document.getElementById('previewSection').style.display = 'block';
+                document.getElementById('insertGuide').style.display = 'none';
+                attachCellClickEvents(area);
+                saveAdminSettings();
+            })
+            .catch(err => {
+                document.getElementById('spinnerPreview').style.display = 'none';
+                document.getElementById('docPreviewArea').innerHTML = `<p style="color:red;padding:16px;">미리보기 변환 실패: ${err.message}</p>`;
+                document.getElementById('previewSection').style.display = 'block';
             });
-            alert("관리자에게 호출 알림을 전송했습니다.");
-        } catch (e) {
-            alert("알림 전송 실패. 네트워크를 확인해주세요.");
-        }
-    });
-
-    const logoutAction = () => {
-        currentUser = null;
-        isAdmin = false;
-        localStorage.removeItem('PUS_currentUser');
-        localStorage.removeItem('PUS_isAdmin');
-        location.reload();
     };
-    document.getElementById('btn-logout').addEventListener('click', logoutAction);
-    document.getElementById('btn-admin-logout').addEventListener('click', logoutAction);
+    reader.readAsArrayBuffer(file);
+}
 
-    // =====================================
-    // 번호판 렌더링
-    // =====================================
-    function renderGrid(gridElement, totalNumbers, disabledNumbers, numbers, isAdminView) {
-        gridElement.innerHTML = '';
-        for (let i = 1; i <= totalNumbers; i++) {
-            const box = document.createElement('div');
-            box.className = 'number-box';
-            box.innerText = i;
-
-            if (disabledNumbers[i]) {
-                box.classList.add('disabled');
-                box.innerHTML += `<div class="name-tag">사용제한</div>`;
-            } else if (numbers[i]) {
-                const isCrew = numbers[i].includes('(크루)');
-                box.classList.add(isCrew ? 'occupied-crew' : 'occupied-self');
-                box.innerHTML += `<div class="name-tag">${numbers[i]}</div>`;
-
-                if (isAdminView) {
-                    box.onclick = () => adminForceClear(i, numbers[i]);
-                } else {
-                    box.onclick = () => toggleNumber(i, numbers[i], true);
-                }
-            } else {
-                if (!isAdminView) {
-                    box.onclick = () => toggleNumber(i, null, false);
-                }
-            }
-            gridElement.appendChild(box);
-        }
-    }
-
-    let currentUserAlarmSenders = new Set();
-
-    function applyAlarmBlinkToUserGrid(senders) {
-        const grid = document.getElementById('number-grid');
-        if (!grid) return;
-        Array.from(grid.querySelectorAll('.number-box')).forEach(box => {
-            const nameTag = box.querySelector('.name-tag');
-            const base = nameTag ? nameTag.innerText.split('(')[0] : '';
-            if (senders.has(base)) box.classList.add('alarm-blink');
-            else box.classList.remove('alarm-blink');
-        });
-    }
-
-    function listenToUserAlarmsForUser() {
-        const fiveMin = 5 * 60 * 1000;
-        onValue(ref(db, "system/userAlarms"), (snap) => {
-            const banner = document.getElementById('user-incoming-alarm');
-            const list = document.getElementById('user-alarm-list');
-            if (!banner || !list) return;
-
-            if (!snap.exists()) {
-                banner.classList.add('hidden');
-                currentUserAlarmSenders = new Set();
-                applyAlarmBlinkToUserGrid(currentUserAlarmSenders);
-                return;
-            }
-
-            const allAlarms = snap.val();
-            const now = Date.now();
-            const active = Object.entries(allAlarms)
-                .map(([key, val]) => ({ key, ...val }))
-                .filter(a => !a.dismissed && (now - a.timestamp) < fiveMin)
-                .sort((a, b) => b.timestamp - a.timestamp);
-
-            if (active.length === 0) {
-                banner.classList.add('hidden');
-                currentUserAlarmSenders = new Set();
-                applyAlarmBlinkToUserGrid(currentUserAlarmSenders);
-                return;
-            }
-
-            list.innerHTML = active.map(a => {
-                const elapsed = now - a.timestamp;
-                const mins = Math.floor(elapsed / 60000);
-                const secs = Math.floor((elapsed % 60000) / 1000);
-                const timeAgo = mins > 0 ? mins + '\ubd84 ' + secs + '\ucd08 \uc804' : secs + '\ucd08 \uc804';
-                return '<div style="padding:4px 0; border-bottom:1px solid #ffd0d0;">'
-                    + '\ud83d\udd14 <b>' + a.sender + '</b> (' + timeAgo + ')'
-                    + '</div>';
-            }).join('');
-
-            banner.classList.remove('hidden');
-            currentUserAlarmSenders = new Set(active.map(a => a.sender));
-            applyAlarmBlinkToUserGrid(currentUserAlarmSenders);
-        });
-    }
-
-    function listenToBoard() {
-        const grid = document.getElementById('number-grid');
-        onValue(ref(db, "system"), (snapshot) => {
-            if (!snapshot.exists()) return;
-            const data = snapshot.val();
-            const total = (data.config && data.config.totalNumbers) || 20;
-            const disabled = (data.config && data.config.disabledNumbers) || {};
-            currentBoardNumbers = (data.boardState && data.boardState.numbers) || {};
-            renderGrid(grid, total, disabled, currentBoardNumbers, false);
-            // 번호판 재렌더링 후 알람 깜빡임 재적용
-            if (currentUserAlarmSenders.size > 0) applyAlarmBlinkToUserGrid(currentUserAlarmSenders);
-        });
-    }
-
-    // =====================================
-    // 번호 토글
-    // 규칙:
-    //   - 본인 모드: 정확히 1개만 유지 (새 번호 선택 시 기존 본인 슬롯 자동 해제)
-    //   - 크루 모드: 개수 제한 없이 추가/해제 가능
-    // =====================================
-    async function toggleNumber(num, currentOccupant, isOccupied) {
-        if (isProcessingClick) return;
-        isProcessingClick = true;
-
-        try {
-            const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
-            const displayName = currentMode === "크루" ? `${currentUser}(크루)` : currentUser;
-            const logRef = ref(db, "system/boardState/log");
-
-            // ── 수정(뺏기) 모드 ──
-            if (isEditMode && isOccupied) {
-                if (currentOccupant.split('(')[0] === currentUser) {
-                    alert("이미 본인이 사용 중인 번호입니다.");
-                } else {
-                    if (confirm(`현재 [${currentOccupant}] 님이 사용 중입니다.\n강제로 내 번호로 수정하시겠습니까?`)) {
-                        // 본인 모드로 뺏기 시 기존 본인 슬롯 먼저 해제
-                        if (currentMode === "본인") {
-                            const tasks = [];
-                            Object.entries(currentBoardNumbers).forEach(([k, v]) => {
-                                if (v === currentUser) {
-                                    tasks.push(remove(ref(db, `system/boardState/numbers/${k}`)));
-                                }
-                            });
-                            await Promise.all(tasks);
-                        }
-                        await set(ref(db, `system/boardState/numbers/${num}`), displayName);
-                        await push(logRef, { time: timeStr, num: num, action: "수정(뺏기)", user: displayName });
-                    }
-                }
-                isEditMode = false;
-                const btnEdit = document.getElementById('btn-edit-mode');
-                btnEdit.classList.replace('btn-warning', 'btn-secondary');
-                btnEdit.style.color = 'white';
-                return;
-            }
-
-            // ── 점유된 자리 클릭 ──
-            if (isOccupied) {
-                const occupantBase = currentOccupant.split('(')[0];
-                if (occupantBase !== currentUser) {
-                    alert("본인의 번호판만 반납할 수 있습니다.\n(다른 사람의 번호를 뺏으려면 상단의 [수정] 버튼을 켜주세요)");
-                    return;
-                }
-                // 내 자리 반납 (본인/크루 모두 동일하게 단순 제거)
-                await remove(ref(db, `system/boardState/numbers/${num}`));
-                await push(logRef, { time: timeStr, num: num, action: "반납", user: currentOccupant });
-                return;
-            }
-
-            // ── 빈 자리 선택 ──
-            if (currentMode === "본인") {
-                // 본인 모드: 기존 본인 슬롯이 있으면 자리이동, 없으면 신규 선택
-                const existEntry = Object.entries(currentBoardNumbers).find(([k, v]) => v === currentUser);
-
-                if (existEntry) {
-                    if (!confirm(`이미 ${existEntry[0]}번을 선택 중입니다. ${num}번으로 자리 이동을 하시겠습니까?`)) return;
-
-                    const res = await runTransaction(ref(db, "system/boardState/numbers"), (numbers) => {
-                        if (!numbers) numbers = {};
-                        if (numbers[num] && numbers[num] !== currentUser) return; // 이미 다른 사람
-                        // 기존 본인 슬롯 모두 제거
-                        Object.keys(numbers).forEach(k => {
-                            if (numbers[k] === currentUser) delete numbers[k];
-                        });
-                        numbers[num] = currentUser;
-                        return numbers;
-                    });
-
-                    if (res.committed) {
-                        await push(logRef, { time: timeStr, num: num, action: "자리이동", user: currentUser });
-                    } else {
-                        alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
-                    }
-                } else {
-                    // 신규 선택 (트랜잭션으로 충돌 방지)
-                    const res = await runTransaction(ref(db, `system/boardState/numbers/${num}`), (currentData) => {
-                        if (currentData === null) return currentUser;
-                        return;
-                    });
-                    if (res.committed) {
-                        await push(logRef, { time: timeStr, num: num, action: "선택", user: currentUser });
-                    } else {
-                        alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
-                    }
-                }
-
-            } else {
-                // 크루 모드: 개수 제한 없이 추가 선택 (트랜잭션으로 충돌 방지)
-                const res = await runTransaction(ref(db, `system/boardState/numbers/${num}`), (currentData) => {
-                    if (currentData === null) return displayName;
-                    return;
-                });
-                if (res.committed) {
-                    await push(logRef, { time: timeStr, num: num, action: "선택(크루)", user: displayName });
-                } else {
-                    alert("간발의 차이로 다른 사람이 먼저 번호를 선택했습니다.");
-                }
-            }
-
-        } catch (e) {
-            console.error("toggleNumber 오류:", e);
-            alert("처리 중 오류가 발생했습니다. 다시 시도해주세요.");
-        } finally {
-            setTimeout(() => { isProcessingClick = false; }, 150);
-        }
-    }
-
-    // =====================================
-    // [수정 4] 초기화 버튼 - 개별 노드 remove로 동시성 안전하게 처리
-    // =====================================
-    document.getElementById('btn-return-all').addEventListener('click', async () => {
-        try {
-            const snap = await get(ref(db, "system/boardState/numbers"));
-            if (!snap.exists()) return alert("현재 사용 중인 번호가 없습니다.");
-
-            const numbers = snap.val();
-            const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
-            let hasChanged = false;
-
-            const tasks = [];
-            Object.entries(numbers).forEach(([num, name]) => {
-                if (name && name.includes(currentUser)) {
-                    tasks.push(
-                        remove(ref(db, `system/boardState/numbers/${num}`)).then(() =>
-                            push(ref(db, "system/boardState/log"), {
-                                time: timeStr, num: num, action: "전체반납", user: name.split('(')[0]
-                            })
-                        )
-                    );
-                    hasChanged = true;
-                }
+/* ═══════════════════════════════════════════════
+   셀 클릭 이벤트 부착
+═══════════════════════════════════════════════ */
+function attachCellClickEvents(area) {
+    const tables = area.querySelectorAll('table');
+    tables.forEach((table, tIdx) => {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach((row, rIdx) => {
+            const cells = row.querySelectorAll('td, th');
+            cells.forEach((cell, cIdx) => {
+                cell.classList.add('cell-sig-target');
+                cell.title = '이 셀부터 서명 순차 삽입 (왼쪽 셀에 이름 자동 기입)';
+                cell.addEventListener('click', () => onCellClick(area, tables, tIdx, rIdx, cIdx));
             });
-
-            if (!hasChanged) return alert("반납할 내 번호가 없습니다.");
-            await Promise.all(tasks);
-            alert("내 이름이 들어간 모든 번호가 초기화(반납)되었습니다.");
-        } catch (e) {
-            console.error("전체 반납 오류:", e);
-            alert("처리 중 오류가 발생했습니다.");
-        }
+        });
     });
+}
 
-    // =====================================
-    // 관리자 기능
-    // =====================================
-    function listenToAdminBoard() {
-        const adminGrid = document.getElementById('admin-number-grid');
-        onValue(ref(db, "system"), (snapshot) => {
-            if (!snapshot.exists()) return;
-            const data = snapshot.val();
-            const total = (data.config && data.config.totalNumbers) || 20;
-            const disabled = (data.config && data.config.disabledNumbers) || {};
-            const occupied = (data.boardState && data.boardState.numbers) || {};
-            renderGrid(adminGrid, total, disabled, occupied, true);
-            // 렌더링 후 현재 알람 발신자 박스에 깜빡임 재적용
-            if (currentAlarmSenders && currentAlarmSenders.size > 0) applyAlarmBlinkToBoxes(currentAlarmSenders);
-        });
+function onCellClick(area, tables, tIdx, rIdx, cIdx) {
+    const table = tables[tIdx];
+    const rows  = table.querySelectorAll('tr');
+    const targetCell = rows[rIdx].querySelectorAll('td, th')[cIdx];
+
+    // ── 같은 셀 재클릭 → 선택 취소(toggle) ──
+    const isSameCell = insertPosition &&
+        insertPosition.tableIdx === tIdx &&
+        insertPosition.rowIdx   === rIdx &&
+        insertPosition.colIdx   === cIdx;
+
+    clearPreviewMarkers(area);
+
+    if (isSameCell) {
+        // 선택 취소
+        insertPosition = null;
+        saveAdminSettings();
+        document.getElementById('insertGuide').style.display = 'none';
+        return;
     }
 
-    // 직원 → 관리자 알람 수신
-    // userAlarms 목록 전체를 실시간 감시 → 누적 표시, 새 알림이 와도 기존 유지
-    let currentAlarmSenders = new Set();
+    // ── 새 셀 선택 ──
+    targetCell.classList.add('selected');
+    insertPosition = { tableIdx: tIdx, rowIdx: rIdx, colIdx: cIdx };
+    saveAdminSettings();
 
-    function applyAlarmBlinkToBoxes(senders) {
-        const adminGrid = document.getElementById('admin-number-grid');
-        if (!adminGrid) return;
-        Array.from(adminGrid.querySelectorAll('.number-box')).forEach(box => {
-            const nameTag = box.querySelector('.name-tag');
-            const base = nameTag ? nameTag.innerText.split('(')[0] : '';
-            if (senders.has(base)) box.classList.add('alarm-blink');
-            else box.classList.remove('alarm-blink');
-        });
+    // 체크된 직원 중 서명 완료자 — timestamp(일자) 오름차순
+    const checkedIds = Array.from(document.querySelectorAll('.card-checkbox:checked')).map(c => c.value);
+    let previewUsers;
+    if (checkedIds.length > 0) {
+        previewUsers = checkedIds
+            .map(id => globalUsersData[id])
+            .filter(u => u && u.signature && u.signature !== '')
+            .sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
+    } else {
+        // 체크 없으면 서명 완료 전체 (timestamp 순)
+        previewUsers = Object.values(globalUsersData)
+            .filter(u => u.role !== 'admin' && u.signature && u.signature !== '')
+            .sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
     }
 
-    function clearAllAlarmBlink() {
-        const adminGrid = document.getElementById('admin-number-grid');
-        if (!adminGrid) return;
-        adminGrid.querySelectorAll('.alarm-blink').forEach(b => b.classList.remove('alarm-blink'));
-        currentAlarmSenders = new Set();
-    }
+    // ── 행 단위 순차 배치: colIdx 고정, rowIdx만 증가 ──
+    let queue = [...previewUsers];
+    for (let r = rIdx; r < rows.length && queue.length; r++) {
+        const rowCells = rows[r].querySelectorAll('td, th');
+        if (cIdx >= rowCells.length) continue;   // 해당 행에 그 열이 없으면 건너뜀
 
-    function listenToUserAlarms() {
-        const fiveMin = 5 * 60 * 1000;
-        onValue(ref(db, "system/userAlarms"), (snap) => {
-            const alarmBanner = document.getElementById('admin-incoming-alarm');
-            const alarmList = document.getElementById('alarm-list');
+        const user    = queue.shift();
+        const sigCell = rowCells[cIdx];
 
-            if (!snap.exists()) {
-                alarmBanner.classList.add('hidden');
-                clearAllAlarmBlink();
-                return;
-            }
+        // 서명 셀 마커
+        const sigBadge = document.createElement('span');
+        sigBadge.className = 'preview-badge badge-sig';
+        sigBadge.innerText = r === rIdx ? `▶ ${user.name} 서명` : `↳ ${user.name} 서명`;
+        sigCell.prepend(sigBadge);
 
-            const allAlarms = snap.val();
-            const now = Date.now();
-            const active = Object.entries(allAlarms)
-                .map(([key, val]) => ({ key, ...val }))
-                .filter(a => !a.dismissed && (now - a.timestamp) < fiveMin)
-                .sort((a, b) => b.timestamp - a.timestamp); // 최신순
-
-            if (active.length === 0) {
-                alarmBanner.classList.add('hidden');
-                clearAllAlarmBlink();
-                return;
-            }
-
-            // 목록 렌더링
-            alarmList.innerHTML = active.map(a => {
-                const elapsed = now - a.timestamp;
-                const mins = Math.floor(elapsed / 60000);
-                const secs = Math.floor((elapsed % 60000) / 1000);
-                const timeAgo = mins > 0 ? mins + '분 ' + secs + '초 전' : secs + '초 전';
-                return '<div style="padding:4px 0; border-bottom:1px solid #ffd0d0; display:flex; justify-content:space-between; align-items:center;">'
-                    + '<span>&#128276; <b>' + a.sender + '</b> (' + timeAgo + ')</span>'
-                    + '<button onclick="dismissAlarm(\'' + a.key + '\')" style="background:#8e8e93;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:11px;cursor:pointer;">끄기</button>'
-                    + '</div>';
-            }).join('');
-
-            alarmBanner.classList.remove('hidden');
-            currentAlarmSenders = new Set(active.map(a => a.sender));
-            applyAlarmBlinkToBoxes(currentAlarmSenders);
-        });
-    }
-
-    // 개별 알림 끄기 (목록 내 인라인 onclick에서 호출)
-    window.dismissAlarm = async (key) => {
-        try {
-            await update(ref(db, 'system/userAlarms/' + key), { dismissed: true });
-        } catch (e) {
-            console.error("알림 끄기 실패:", e);
+        // 왼쪽 이름 셀
+        if (cIdx > 0 && rowCells[cIdx - 1]) {
+            const nameCell = rowCells[cIdx - 1];
+            nameCell.classList.add('cell-name-target');
+            const nb = document.createElement('span');
+            nb.className = 'preview-badge badge-name';
+            nb.innerText = `✎ ${user.name}`;
+            nameCell.prepend(nb);
         }
+
+        // 오른쪽 날짜 셀
+        if (cIdx + 1 < rowCells.length && rowCells[cIdx + 1]) {
+            const dateCell = rowCells[cIdx + 1];
+            dateCell.classList.add('cell-date-target');
+            const d = user.timestamp ? new Date(user.timestamp) : new Date();
+            const db2 = document.createElement('span');
+            db2.className = 'preview-badge badge-date';
+            db2.innerText = `📅 ${d.getMonth()+1}/${d.getDate()}`;
+            dateCell.prepend(db2);
+        }
+    }
+
+    // 안내 메시지
+    const used = previewUsers.length - queue.length;
+    document.getElementById('insertGuide').style.display = 'flex';
+    document.getElementById('insertGuideText').innerHTML =
+        `<b>${rIdx+1}행 ${cIdx+1}열</b>부터 아래로 한 행씩 순차 삽입됩니다 (${used}명 미리보기).<br>
+        <span style="color:#059669;">● 초록</span>: 이름 &nbsp;
+        <span style="color:#1d4ed8;">● 파랑</span>: 서명 &nbsp;
+        <span style="color:#7c3aed;">● 보라</span>: 날짜(M/D) &nbsp;
+        ※ 정렬기준: 서명 작성일 오름차순`;
+}
+
+/* 미리보기 마커 전체 초기화 헬퍼 */
+function clearPreviewMarkers(area) {
+    area.querySelectorAll('.cell-sig-target').forEach(c => c.classList.remove('selected'));
+    area.querySelectorAll('.cell-name-target').forEach(c => c.classList.remove('cell-name-target'));
+    area.querySelectorAll('.cell-date-target').forEach(c => c.classList.remove('cell-date-target'));
+    area.querySelectorAll('.preview-badge').forEach(b => b.remove());
+}
+
+/* 체크 변경 시 현재 삽입 위치 기준으로 미리보기 배지 재렌더 */
+function refreshPreviewBadges() {
+    if (!insertPosition) return;
+    const area   = document.getElementById('docPreviewArea');
+    const tables = area.querySelectorAll('table');
+    if (!tables.length) return;
+    onCellClick(area, tables, insertPosition.tableIdx, insertPosition.rowIdx, insertPosition.colIdx);
+}
+
+/* ═══════════════════════════════════════════════
+   다운로드 진입점
+═══════════════════════════════════════════════ */
+function downloadCheckedEmployeesDocument() {
+    if (!uploadedTemplateArrayBuffer) {
+        alert('1번 기본 Word 양식(.docx) 파일을 먼저 업로드해 주세요.');
+        return;
+    }
+    const chks = document.querySelectorAll('.card-checkbox:checked');
+    if (!chks.length) { alert('양식에 적용할 직원을 체크박스에서 선택해 주세요.'); return; }
+
+    const selectedUsers = Array.from(chks)
+        .map(c => globalUsersData[c.value])
+        .filter(u => u && u.signature && u.signature !== '')
+        .sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
+
+    if (!selectedUsers.length) { alert('선택된 인원 중 서명을 완료한 직원이 없습니다.'); return; }
+
+    if (!insertPosition) {
+        alert('미리보기에서 서명이 들어갈 셀을 먼저 클릭하여 삽입 위치를 지정해 주세요.');
+        return;
+    }
+
+    document.getElementById('btnDownload').disabled = true;
+    document.getElementById('spinnerDownload').style.display = 'block';
+
+    // 원본 ArrayBuffer를 복사해서 사용 (원본 보존)
+    const bufCopy = uploadedTemplateArrayBuffer.slice();
+
+    patchDocxAndDownload(bufCopy, selectedUsers, insertPosition)
+        .catch(err => alert('문서 생성 중 오류: ' + err.message))
+        .finally(() => {
+            document.getElementById('btnDownload').disabled = false;
+            document.getElementById('spinnerDownload').style.display = 'none';
+        });
+}
+
+/* ═══════════════════════════════════════════════
+   핵심: JSZip으로 원본 docx XML 직접 수술
+   - 원본 양식/폰트/스타일 100% 보존
+   - 서명 셀: PNG 이미지 삽입
+   - 이름 셀(서명 셀 왼쪽): 직원 이름 텍스트 삽입, 원본 rPr 속성 유지
+═══════════════════════════════════════════════ */
+async function patchDocxAndDownload(arrayBuffer, users, pos) {
+    const zip = await JSZip.loadAsync(arrayBuffer);
+
+    /* 1. word/document.xml 읽기 */
+    const docXmlStr = await zip.file('word/document.xml').async('string');
+    const parser    = new DOMParser();
+    const xmlDoc    = parser.parseFromString(docXmlStr, 'application/xml');
+
+    const NS = {
+        w:   'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+        wp:  'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing',
+        a:   'http://schemas.openxmlformats.org/drawingml/2006/main',
+        pic: 'http://schemas.openxmlformats.org/drawingml/2006/picture',
+        r:   'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+        xlink: 'http://www.w3.org/1999/xlink'
     };
 
-    // 전체 PW 초기화 버튼 (관리자)
-    document.getElementById('btn-reset-all-pw').addEventListener('click', async () => {
-        if (!confirm("모든 직원의 비밀번호를 초기화하시겠습니까?\n(각 직원이 다음 로그인 시 새 비밀번호를 설정하게 됩니다)")) return;
-        try {
-            const whitelistSnap = await get(ref(db, "system/whitelist"));
-            if (!whitelistSnap.exists()) return alert("등록된 직원 명단이 없습니다.");
-            const names = Object.keys(whitelistSnap.val());
-            const tasks = names.map(name => remove(ref(db, `users/${name}`)));
-            await Promise.all(tasks);
-            alert(`총 ${names.length}명의 비밀번호가 전체 초기화되었습니다.`);
-        } catch (e) {
-            console.error("전체 PW 초기화 오류:", e);
-            alert("초기화 실패. 다시 시도해주세요.");
-        }
-    });
+    /* 2. 대상 테이블의 모든 <w:tc> 선형 수집 */
+    const allTables = xmlDoc.getElementsByTagNameNS(NS.w, 'tbl');
+    const targetTbl = allTables[pos.tableIdx];
+    if (!targetTbl) throw new Error(`테이블 인덱스 ${pos.tableIdx}를 찾을 수 없습니다.`);
 
-    // 전체 끄기 버튼
-    document.getElementById('btn-dismiss-alarm').addEventListener('click', async () => {
-        try {
-            const snap = await get(ref(db, "system/userAlarms"));
-            if (!snap.exists()) return;
-            const tasks = Object.keys(snap.val()).map(key =>
-                update(ref(db, 'system/userAlarms/' + key), { dismissed: true })
-            );
-            await Promise.all(tasks);
-        } catch (e) {
-            console.error("전체 알림 끄기 실패:", e);
-        }
-    });
+    // 행 단위 수집: pos.colIdx 고정, pos.rowIdx 이후 행마다 해당 열 셀 수집
+    const allRows = targetTbl.getElementsByTagNameNS(NS.w, 'tr');
 
-    // 관리자 번호 강제 취소
-    async function adminForceClear(num, currentOccupant) {
-        if (!confirm(`[${currentOccupant}] 님이 사용 중인 ${num}번을 강제로 반납(취소)하시겠습니까?`)) return;
-        try {
-            const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
-            await remove(ref(db, `system/boardState/numbers/${num}`));
-            await push(ref(db, "system/boardState/log"), {
-                time: timeStr, num: num, action: "관리자강제취소", user: currentOccupant.split('(')[0]
-            });
-        } catch (e) {
-            console.error("강제 취소 오류:", e);
-            alert("처리 중 오류가 발생했습니다.");
+    const cellsToFill = []; // { sigCell, nameCell, dateCell }
+
+    for (let rIdx = pos.rowIdx; rIdx < allRows.length; rIdx++) {
+        const row = allRows[rIdx];
+        // <w:tr> 직계 자식 <w:tc>만 선택 (중첩 테이블 방지)
+        const tcs = Array.from(row.childNodes).filter(n => n.localName === 'tc');
+        if (pos.colIdx >= tcs.length) continue; // 이 행에 해당 열 없으면 건너뜀
+
+        const sigCell  = tcs[pos.colIdx];
+        const nameCell = pos.colIdx > 0                  ? tcs[pos.colIdx - 1] : null;
+        const dateCell = pos.colIdx + 1 < tcs.length     ? tcs[pos.colIdx + 1] : null;
+        cellsToFill.push({ sigCell, nameCell, dateCell });
+    }
+
+    if (!cellsToFill.length) throw new Error('지정 위치 이후 행을 찾을 수 없습니다.');
+
+    /* 3. word/_rels/document.xml.rels 읽기 */
+    const relsPath   = 'word/_rels/document.xml.rels';
+    const relsXmlStr = await zip.file(relsPath).async('string');
+    const relsDoc    = parser.parseFromString(relsXmlStr, 'application/xml');
+    const relsRoot   = relsDoc.documentElement;
+
+    /* 4. [Content_Types].xml에 png 타입 등록 확인 */
+    const ctPath   = '[Content_Types].xml';
+    let ctXmlStr   = await zip.file(ctPath).async('string');
+    if (!ctXmlStr.includes('image/png')) {
+        ctXmlStr = ctXmlStr.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
+        zip.file(ctPath, ctXmlStr);
+    }
+
+    /* 5. 기존 rId 최대값 파악 (충돌 방지) */
+    const existingIds = Array.from(relsRoot.getElementsByTagName('Relationship'))
+        .map(r => parseInt((r.getAttribute('Id') || '').replace(/\D/g, '')) || 0);
+    let nextRIdNum = Math.max(0, ...existingIds) + 100; // 100번대부터 시작해 충돌 방지
+
+    /* 6. 셀별 이미지 삽입 + 이름 기입 */
+    const fillCount = Math.min(cellsToFill.length, users.length);
+
+    for (let i = 0; i < fillCount; i++) {
+        const { sigCell, nameCell, dateCell } = cellsToFill[i];
+        const user = users[i];
+
+        /* ── 6a. 서명 이미지 PNG → 바이너리 → zip 저장 ── */
+        const base64 = user.signature.split(',')[1];
+        const imgBin = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        const imgFilename = `sig_${i}.png`;
+        const imgPath     = `word/media/${imgFilename}`;
+        zip.file(imgPath, imgBin);
+
+        /* ── 6b. relationship 등록 ── */
+        const rId = `rIdSig${nextRIdNum++}`;
+        const relEl = relsDoc.createElement('Relationship');
+        relEl.setAttribute('Id', rId);
+        relEl.setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image');
+        relEl.setAttribute('Target', `media/${imgFilename}`);
+        relsRoot.appendChild(relEl);
+
+        /* ── 6c. 서명 셀 <w:tc> 내부를 이미지 Drawing으로 교체 ── */
+        // 셀 속성(<w:tcPr>)은 보존, <w:p> 이하만 교체
+        const tcPr = sigCell.getElementsByTagNameNS(NS.w, 'tcPr')[0];
+
+        // 셀 너비로 이미지 크기 추정 (EMU 단위; 914400 EMU = 1 inch)
+        // 기본 90pt x 30pt → 1143000 x 381000 EMU
+        const EMU_W = 1143000;
+        const EMU_H = 381000;
+
+        // "텍스트 뒤(Behind Text)" 레이아웃:
+        // wp:anchor + behindDoc="1" + wrapNone
+        // layoutInCell="1" 으로 표 셀 안에서도 정상 동작
+        const drawingXml = `<w:p xmlns:w="${NS.w}"><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing xmlns:wp="${NS.wp}"><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="251658240" behindDoc="1" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${EMU_W}" cy="${EMU_H}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="${i+1}" name="sig${i}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="${NS.a}" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="${NS.a}"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="${NS.pic}"><pic:nvPicPr><pic:cNvPr id="${i+1}" name="sig${i}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="${NS.r}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${EMU_W}" cy="${EMU_H}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
+
+        // 기존 <w:p> 제거 후 새 단락 삽입
+        Array.from(sigCell.getElementsByTagNameNS(NS.w, 'p')).forEach(p => p.parentNode.removeChild(p));
+        const newPara = parser.parseFromString(drawingXml, 'application/xml').documentElement;
+        if (tcPr) sigCell.insertBefore(newPara, tcPr.nextSibling);
+        else      sigCell.appendChild(newPara);
+
+        /* ── 6d. 이름 셀(왼쪽): 원본 rPr 보존하며 텍스트만 이름으로 교체 ── */
+        if (nameCell) {
+            // 원본 <w:rPr> 추출 (첫번째 <w:r>의 것 사용)
+            const origRuns = nameCell.getElementsByTagNameNS(NS.w, 'r');
+            let rPrXml = '';
+            if (origRuns.length > 0) {
+                const origRPr = origRuns[0].getElementsByTagNameNS(NS.w, 'rPr')[0];
+                if (origRPr) rPrXml = origRPr.outerHTML || new XMLSerializer().serializeToString(origRPr);
+            }
+
+            // 기존 <w:p> 내 텍스트 런 제거 후 이름 런 삽입
+            const namePsArr = Array.from(nameCell.getElementsByTagNameNS(NS.w, 'p'));
+            if (namePsArr.length > 0) {
+                const firstP = namePsArr[0];
+                // pPr(단락속성)는 보존, 나머지 r, hyperlink 제거
+                Array.from(firstP.childNodes)
+                    .filter(n => n.localName === 'r' || n.localName === 'hyperlink' || n.localName === 'del' || n.localName === 'ins')
+                    .forEach(n => firstP.removeChild(n));
+
+                // 이름 런 추가
+                const nameRunXml = `<w:r xmlns:w="${NS.w}">${rPrXml}<w:t xml:space="preserve">${escapeXml(user.name)}</w:t></w:r>`;
+                const nameRunEl  = parser.parseFromString(`<root xmlns:w="${NS.w}">${nameRunXml}</root>`, 'application/xml').documentElement.firstChild;
+                firstP.appendChild(nameRunEl);
+                applyCenter(firstP, NS, parser);
+
+                // 다른 <w:p>는 제거 (첫 번째만 남김)
+                namePsArr.slice(1).forEach(p => p.parentNode && p.parentNode.removeChild(p));
+            }
+        }
+
+        /* ── 6e. 날짜 셀(서명 셀 오른쪽): 원본 rPr 보존하며 날짜 텍스트 삽입 ── */
+        if (dateCell) {
+            const d = user.timestamp ? new Date(user.timestamp) : new Date();
+            const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+
+            // 원본 rPr 추출
+            const dateRuns = dateCell.getElementsByTagNameNS(NS.w, 'r');
+            let dateRPrXml = '';
+            if (dateRuns.length > 0) {
+                const dateRPr = dateRuns[0].getElementsByTagNameNS(NS.w, 'rPr')[0];
+                if (dateRPr) dateRPrXml = new XMLSerializer().serializeToString(dateRPr);
+            }
+
+            const datePsArr = Array.from(dateCell.getElementsByTagNameNS(NS.w, 'p'));
+            if (datePsArr.length > 0) {
+                const firstP = datePsArr[0];
+                Array.from(firstP.childNodes)
+                    .filter(n => n.localName === 'r' || n.localName === 'hyperlink' || n.localName === 'del' || n.localName === 'ins')
+                    .forEach(n => firstP.removeChild(n));
+
+                const dateRunXml = `<w:r xmlns:w="${NS.w}">${dateRPrXml}<w:t xml:space="preserve">${escapeXml(dateStr)}</w:t></w:r>`;
+                const dateRunEl  = parser.parseFromString(`<root xmlns:w="${NS.w}">${dateRunXml}</root>`, 'application/xml').documentElement.firstChild;
+                firstP.appendChild(dateRunEl);
+                applyCenter(firstP, NS, parser);
+                datePsArr.slice(1).forEach(p => p.parentNode && p.parentNode.removeChild(p));
+            }
         }
     }
 
-    document.getElementById('btn-admin-reset-all').addEventListener('click', async () => {
-        if (!confirm("현재 선택된 모든 사람들의 번호를 강제로 초기화(전체 반납) 하시겠습니까?")) return;
-        try {
-            const snap = await get(ref(db, "system/boardState/numbers"));
-            if (!snap.exists() || !snap.val()) return alert("비울 번호가 없습니다.");
+    /* 7. 수정된 rels 저장 */
+    const serializer = new XMLSerializer();
+    zip.file(relsPath, serializer.serializeToString(relsDoc));
 
-            const numbers = snap.val();
-            if (Object.keys(numbers).length === 0) return alert("비울 번호가 없습니다.");
+    /* 8. 수정된 document.xml 저장 */
+    zip.file('word/document.xml', serializer.serializeToString(xmlDoc));
 
-            const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
-            const tasks = Object.entries(numbers).map(([num, name]) =>
-                remove(ref(db, `system/boardState/numbers/${num}`)).then(() =>
-                    push(ref(db, "system/boardState/log"), {
-                        time: timeStr, num: num, action: "관리자전체강제취소", user: name.split('(')[0]
-                    })
-                )
-            );
-            await Promise.all(tasks);
-            alert("모든 번호판이 성공적으로 초기화되었습니다.");
-        } catch (e) {
-            console.error("전체 강제 초기화 오류:", e);
-            alert("처리 중 오류가 발생했습니다.");
-        }
-    });
+    /* 9. Blob 생성 → 다운로드 */
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.style.display = 'none';
+    a.href     = url;
+    a.download = '서명양식_완성본.docx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 
-    document.getElementById('btn-toggle-admin-board').addEventListener('click', () => {
-        document.getElementById('admin-board-popup').classList.toggle('hidden');
-    });
-
-    // =====================================
-    // PW 초기화 요청 및 명단 로직
-    // =====================================
-    document.getElementById('btn-user-reset-req').addEventListener('click', async () => {
-        const id = document.getElementById('login-id').value.trim();
-        if (!id) return alert("ID(이름) 칸에 본인 이름을 먼저 적고 [비밀번호 초기화 요청]을 눌러주세요.");
-        try {
-            await set(ref(db, `system/resetRequests/${id}`), true);
-            alert(`[${id}]님의 비밀번호 초기화를 관리자에게 요청했습니다.`);
-        } catch (e) {
-            alert("요청 전송 실패. 네트워크를 확인해주세요.");
-        }
-    });
-
-    function listenToResetRequests() {
-        onValue(ref(db, "system/resetRequests"), (snap) => {
-            const badge = document.getElementById('reset-badge');
-            if (snap.exists()) {
-                pendingResets = Object.keys(snap.val());
-                if (pendingResets.length > 0) {
-                    badge.innerText = pendingResets.length;
-                    badge.style.display = 'inline-block';
-                } else {
-                    badge.style.display = 'none';
-                }
-            } else {
-                pendingResets = [];
-                badge.style.display = 'none';
-            }
-        });
+/* ── 단락에 가운데 정렬(<w:jc w:val="center"/>) 강제 적용 ──
+   <w:pPr>가 있으면 기존 <w:jc>를 교체, 없으면 pPr 생성해서 삽입 */
+function applyCenter(para, NS, parser) {
+    let pPr = para.getElementsByTagNameNS(NS.w, 'pPr')[0];
+    if (!pPr) {
+        // pPr 없으면 새로 만들어서 단락 맨 앞에 삽입
+        const pPrEl = parser.parseFromString(
+            `<w:pPr xmlns:w="${NS.w}"><w:jc w:val="center"/></w:pPr>`,
+            'application/xml'
+        ).documentElement;
+        para.insertBefore(pPrEl, para.firstChild);
+    } else {
+        // 기존 jc 제거 후 center 삽입
+        const oldJc = pPr.getElementsByTagNameNS(NS.w, 'jc')[0];
+        if (oldJc) pPr.removeChild(oldJc);
+        const jcEl = parser.parseFromString(
+            `<w:jc xmlns:w="${NS.w}" w:val="center"/>`,
+            'application/xml'
+        ).documentElement;
+        pPr.appendChild(jcEl);
     }
+}
 
-    const whitelistTitle = document.getElementById('admin-whitelist-title');
-    const whitelistDropdown = document.getElementById('whitelist-dropdown');
-    whitelistTitle.addEventListener('click', () => {
-        whitelistDropdown.classList.toggle('hidden');
-        renderWhitelist();
-    });
-    document.addEventListener('click', (e) => {
-        if (!whitelistTitle.contains(e.target) && !whitelistDropdown.contains(e.target)) {
-            whitelistDropdown.classList.add('hidden');
-        }
-    });
-
-    async function renderWhitelist() {
-        const content = document.getElementById('whitelist-content');
-        content.innerHTML = '불러오는 중...';
-        try {
-            const snap = await get(ref(db, "system/whitelist"));
-            if (snap.exists()) {
-                const names = Object.keys(snap.val());
-                content.innerHTML = names.map(name => `<div class="whitelist-item">- ${name}</div>`).join('');
-            } else {
-                content.innerHTML = '등록된 명단이 없습니다.';
-            }
-        } catch (e) {
-            content.innerHTML = '명단 로딩 실패.';
-        }
-    }
-
-    document.getElementById('btn-add-user').addEventListener('click', async () => {
-        const id = document.getElementById('admin-target-user').value.trim();
-        if (!id) return alert("직원 이름을 입력하세요.");
-        try {
-            await set(ref(db, `system/whitelist/${id}`), true);
-            alert(`[${id}]님이 명단에 등록되었습니다.`);
-            document.getElementById('admin-target-user').value = '';
-            renderWhitelist();
-        } catch (e) {
-            alert("명단 추가 실패.");
-        }
-    });
-
-    document.getElementById('btn-delete-user').addEventListener('click', async () => {
-        const id = document.getElementById('admin-target-user').value.trim();
-        if (!id) return alert("삭제할 직원 이름을 입력하세요.");
-        if (confirm(`[${id}]님의 계정을 완전히 삭제하시겠습니까?`)) {
-            try {
-                await remove(ref(db, `system/whitelist/${id}`));
-                await remove(ref(db, `users/${id}`));
-                alert(`[${id}] 계정이 삭제되었습니다.`);
-                document.getElementById('admin-target-user').value = '';
-                renderWhitelist();
-            } catch (e) {
-                alert("계정 삭제 실패.");
-            }
-        }
-    });
-
-    document.getElementById('btn-reset-pw').addEventListener('click', async () => {
-        const id = document.getElementById('admin-target-user').value.trim();
-        if (!id) {
-            if (pendingResets.length > 0) return alert(`[현재 초기화 요청 대기자]\n- ${pendingResets.join('\n- ')}\n\n입력창에 이름을 적고 버튼을 누르시면 초기화됩니다.`);
-            return alert("초기화할 직원 이름을 입력하세요.");
-        }
-        try {
-            const userSnap = await get(ref(db, `users/${id}`));
-            const whitelistSnap = await get(ref(db, `system/whitelist/${id}`));
-            if (userSnap.exists() || whitelistSnap.exists()) {
-                await remove(ref(db, `users/${id}`));
-                await set(ref(db, `system/whitelist/${id}`), true);
-                await remove(ref(db, `system/resetRequests/${id}`));
-                alert(`[${id}]님의 비밀번호가 초기화되었습니다.\n다시 로그인할 때 입력하는 새로운 비밀번호가 계정 비밀번호로 확정됩니다.`);
-                document.getElementById('admin-target-user').value = '';
-            } else {
-                alert(`[${id}]님은 등록된 명단에 없습니다.`);
-            }
-        } catch (e) {
-            alert("비밀번호 초기화 실패.");
-        }
-    });
-
-    document.getElementById('btn-update-nums').addEventListener('click', async () => {
-        const total = parseInt(document.getElementById('admin-total-nums').value);
-        if (!total || total < 1) return alert("올바른 번호 개수를 입력하세요.");
-        try {
-            await update(ref(db, "system/config"), { totalNumbers: total });
-            alert(`번호판이 ${total}개로 변경되었습니다.`);
-        } catch (e) {
-            alert("변경 실패.");
-        }
-    });
-
-    document.getElementById('btn-toggle-disable').addEventListener('click', async () => {
-        const num = parseInt(document.getElementById('admin-disable-num').value);
-        if (!num) return alert("번호를 입력하세요.");
-        try {
-            const configRef = ref(db, "system/config");
-            const snap = await get(configRef);
-            let disables = snap.exists() ? (snap.val().disabledNumbers || {}) : {};
-            if (disables[num]) delete disables[num];
-            else disables[num] = true;
-            await update(configRef, { disabledNumbers: disables });
-            alert(`${num}번 상태가 변경되었습니다.`);
-        } catch (e) {
-            alert("상태 변경 실패.");
-        }
-    });
-
-    document.getElementById('btn-send-alarm').addEventListener('click', async () => {
-        try {
-            await set(ref(db, "system/alarm"), { timestamp: Date.now() });
-            alert("미반납자 전체에게 퇴근 경고 알람이 전송되었습니다.");
-        } catch (e) {
-            alert("알람 전송 실패.");
-        }
-    });
-
-    // =====================================
-    // [수정 5] 알람 수신 - 5초 기준 유지하되 명확히 처리
-    // =====================================
-    function listenToAlarms() {
-        onValue(ref(db, "system/alarm"), async (snap) => {
-            if (!snap.exists()) return;
-            const alarmData = snap.val();
-            const elapsed = Date.now() - alarmData.timestamp;
-
-            // 5초 이내의 알람만 유효 처리 (너무 오래된 알람은 무시)
-            if (elapsed > 5000) return;
-
-            try {
-                const stateSnap = await get(ref(db, "system/boardState/numbers"));
-                const numbers = stateSnap.exists() ? (stateSnap.val() || {}) : {};
-                const isMyNameLeft = Object.values(numbers).some(name => name && name.includes(currentUser));
-
-                if (isMyNameLeft) {
-                    if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
-                    const overlay = document.getElementById('alarm-overlay');
-                    overlay.style.display = 'flex';
-                    overlay.onclick = () => { overlay.style.display = 'none'; };
-                }
-            } catch (e) {
-                console.error("알람 처리 오류:", e);
-            }
-        });
-    }
-
-    // =====================================
-    // 엑셀 다운로드
-    // =====================================
-    document.getElementById('btn-export-excel').addEventListener('click', async () => {
-        try {
-            const targetDate = document.getElementById('export-date').value;
-            if (!targetDate) return alert("다운로드할 날짜를 선택해주세요.");
-
-            let logData = {};
-            if (targetDate === todayString) {
-                const todaySnap = await get(ref(db, "system/boardState"));
-                if (todaySnap.exists() && todaySnap.val().log) logData = todaySnap.val().log;
-            } else {
-                const historySnap = await get(ref(db, `history/${targetDate}`));
-                if (historySnap.exists() && historySnap.val().log) logData = historySnap.val().log;
-            }
-
-            const logEntries = Object.values(logData);
-            if (logEntries.length === 0) return alert(`${targetDate} 일자의 기록이 존재하지 않습니다.`);
-
-            const excelData = logEntries.map(log => ({
-                '날짜': targetDate,
-                '시간': log.time,
-                '작업': log.action,
-                '직원명': log.user,
-                '번호': log.num
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(excelData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "사용기록");
-            XLSX.writeFile(workbook, `번호판기록_${targetDate}.xlsx`);
-        } catch (error) {
-            console.error(error);
-            alert("엑셀 추출 중 오류가 발생했습니다.");
-        }
-    });
+function escapeXml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
 </script>
 </body>
 </html>
